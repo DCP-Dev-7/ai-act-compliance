@@ -284,7 +284,7 @@ def generate_documents(db: Session, customer: Customer, actor: User | str,
         db.add(doc)
         out.append(doc)
     if report:
-        doc = GeneratedDocument(customer_id=customer.id, kind="gap_report", title=f"갭 리포트 v{report.version}",
+        doc = GeneratedDocument(customer_id=customer.id, kind="gap_report", title="갭 리포트",
                                 version=next_version("gap_report", None), paragraphs=[], provider="규칙(결정적)",
                                 html=report.html)
         db.add(doc)
