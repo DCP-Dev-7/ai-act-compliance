@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+node_modules/
+.next/
+web/tsconfig.tsbuildinfo
+web/next-env.d.ts
+# 로컬 실행 산출물(임시 Postgres, 증적, 로그)
+.devdata/
+api/var/
+*.log
+.DS_Store
