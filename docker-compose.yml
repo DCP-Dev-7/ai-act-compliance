@@ -1,0 +1,80 @@
+# AI 기본법 준수 플랫폼 데모 — 로컬 실행용(가상 데이터 전용).
+# 이미지: 공식 멀티아키텍처(amd64/arm64) 이미지만 사용. 메모리 상한 합계 약 1.7GB.
+name: ai-act-compliance
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aiact
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aiact}
+      POSTGRES_DB: aiact
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiact -d aiact"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 512m
+    restart: unless-stopped
+
+  demo-service:
+    build: ./demo-service
+    ports:
+      - "127.0.0.1:${DEMO_PORT:-8081}:80"
+    mem_limit: 64m
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    depends_on:
+      db:
+        condition: service_healthy
+      demo-service:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql+psycopg://aiact:${POSTGRES_PASSWORD:-aiact}@db:5432/aiact
+      JWT_SECRET: ${JWT_SECRET:-change-me-demo-secret-at-least-32-bytes-long}
+      RELEASE_WEBHOOK_TOKEN: ${RELEASE_WEBHOOK_TOKEN:-demo-webhook-token}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-fable-5-2}
+      LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+      INTERNAL_LLM_BASE_URL: ${INTERNAL_LLM_BASE_URL:-}
+      INTERNAL_LLM_MODEL: ${INTERNAL_LLM_MODEL:-internal-model}
+      INTERNAL_LLM_API_KEY: ${INTERNAL_LLM_API_KEY:-}
+      LLM_PRICE_IN_PER_MTOK: ${LLM_PRICE_IN_PER_MTOK:-8}
+      LLM_PRICE_OUT_PER_MTOK: ${LLM_PRICE_OUT_PER_MTOK:-40}
+      BUDGET_FALLBACK_TO_MOCK: ${BUDGET_FALLBACK_TO_MOCK:-1}
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-1}
+      GOLDEN_THRESHOLD: ${GOLDEN_THRESHOLD:-0.9}
+      EVIDENCE_RETENTION_YEARS: ${EVIDENCE_RETENTION_YEARS:-5}
+      EVIDENCE_DIR: /data/evidence
+      # 기술 점검기는 컨테이너 네트워크 안의 demo-service 만 점검할 수 있다(허용 목록).
+      DEMO_SERVICE_URL: http://demo-service
+      TECH_CHECK_ALLOWLIST: http://demo-service
+      CORS_ORIGINS: http://localhost:${WEB_PORT:-3000}
+    volumes:
+      - evidence:/data/evidence
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    mem_limit: 512m
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_URL: http://api:8000
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    mem_limit: 512m
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  evidence:
