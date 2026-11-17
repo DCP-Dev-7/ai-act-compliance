@@ -9,6 +9,7 @@ DCP의 "AI 기본법 준수 패키지"(진단 → 체계 구축 → 증적 보�
 
 운영 환경에서는 고객 자료와 증적이 DCP 국내 데이터센터 안에만 있어야 합니다. 이 데모는 가상 데이터와 공개 법령 요약만 쓰므로 노트북에서 돌릴 수 있습니다.
 
+- 화면별 사용 가이드(용어 풀이, 결과 읽는 법, 10분 시연 순서, 예상 질문): [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)
 - IDC 서버 구성안(하드웨어·소프트웨어 스택, AI 추론, 보안): [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)
 - 검증 기록: [`docs/VERIFICATION.md`](docs/VERIFICATION.md)
 
