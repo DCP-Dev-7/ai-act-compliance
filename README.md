@@ -9,6 +9,9 @@ DCP의 "AI 기본법 준수 패키지"(진단 → 체계 구축 → 증적 보�
 
 운영 환경에서는 고객 자료와 증적이 DCP 국내 데이터센터 안에만 있어야 합니다. 이 데모는 가상 데이터와 공개 법령 요약만 쓰므로 노트북에서 돌릴 수 있습니다.
 
+- IDC 서버 구성안(하드웨어·소프트웨어 스택, AI 추론, 보안): [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)
+- 검증 기록: [`docs/VERIFICATION.md`](docs/VERIFICATION.md)
+
 ## 2. 기획서 모듈 대응표
 
 | 모듈 | 내용 | 구현 위치 |
@@ -105,7 +108,7 @@ docker compose up --build
 
 종료: `Ctrl+C` 후 `docker compose down` (데이터까지 지우려면 `docker compose down -v`).
 
-> 주의: 이 저장소를 만든 환경에서는 Docker Hub 접근이 막혀 있어 **컨테이너 빌드·실행은 검증하지 못했습니다.** `docker compose config`(문법 검사)만 통과했습니다. 아래 네이티브 실행은 실제로 검증했습니다. 자세한 내용은 `docs/VERIFICATION.md`.
+> 참고: 저장소를 만든 환경에서는 Docker Hub 접근이 막혀 컨테이너를 실행하지 못했습니다. 이후 2026-11-12 Intel MacBook Pro(Docker Desktop 4.99)에서 `docker compose up --build`로 빌드·실행과 A사 전체 흐름(mock, anthropic 모드)이 동작함을 확인했습니다. 자세한 내용은 `docs/VERIFICATION.md`.
 
 ## 5. 네이티브 실행 (Docker 없이)
 
