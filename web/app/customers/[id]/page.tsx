@@ -6,11 +6,10 @@ import { Action, CustomerFrame, useCustomer } from "@/components/CustomerFrame";
 import { useSession } from "@/components/Shell";
 import { DOC_KIND, isHighImpactStateKey } from "@/lib/labels";
 import { STEP_HELP } from "@/lib/learn";
+import docExamples from "@/lib/docExamples.json";
 
-const EXAMPLE_DOC = `[가상 데이터] 서비스 소개 메모
-AI 활용 기능: 고객 상담 챗봇, 사내 회의록 요약
-고객 상담 챗봇은 일반 이용자에게 제공하는 B2C 기능이며 외부 LLM API를 호출해 답변을 만듭니다.
-사내 회의록 요약은 임직원만 쓰는 내부 업무용 도구이며 외부 LLM API를 호출합니다.`;
+type DocExample = { title: string; content: string; tip: string };
+const EXAMPLES = docExamples as Record<string, DocExample>;
 
 export default function CustomerOverview() {
   const { id, customer, reloadCustomer, customerError } = useCustomer();
@@ -179,12 +178,12 @@ export default function CustomerOverview() {
             <textarea id="content" rows={6} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} required />
             <div className="actions" style={{ marginTop: 10 }}>
               <button type="submit" disabled={!canUpload}>올리기</button>
-              <button type="button" className="ghost" disabled={!canUpload} onClick={() => setForm({ kind: "service_intro", title: "[가상] 서비스 소개 메모", content: EXAMPLE_DOC })}>작성 예시 넣기</button>
+              <button type="button" className="ghost" disabled={!canUpload} onClick={() => { const ex = EXAMPLES[form.kind]; if (ex) setForm({ ...form, title: ex.title, content: ex.content }); }}>‘{DOC_KIND[form.kind] ?? form.kind}’ 작성 예시 넣기</button>
               {!canUpload && <span className="hint"> 고객 담당자·컨설턴트 전용</span>}
             </div>
             <p className="hint" style={{ marginTop: 8 }}>
-              쓰는 요령: <b>‘AI 활용 기능: 기능1, 기능2’</b> 한 줄로 기능 이름을 적고, 기능마다 ① 누가 쓰는지(고객/직원) ② 무엇을 만들거나 판단하는지 ③ 외부 API인지 자체 개발인지 ④ 결과를 사람이 검토하는지를 문장으로 적어 주세요.
-              mock 모드의 추출은 키워드 규칙이라 이 형식을 벗어나면 시스템을 못 찾을 수 있습니다.
+              <b>{DOC_KIND[form.kind] ?? form.kind}</b> 쓰는 요령: {EXAMPLES[form.kind]?.tip}
+              {" "}mock 모드의 추출은 키워드 규칙이라 이 형식을 벗어나면 시스템을 못 찾을 수 있습니다. 종류를 바꾸면 예시와 요령도 바뀝니다.
             </p>
           </form>
         </div>

@@ -267,6 +267,9 @@ def sentences_for(name: str, all_sents: list[Sentence]) -> list[Sentence]:
     compact = name.replace(" ", "")
     out = []
     for s in all_sents:
+        # 'AI 활용 기능: A, B' 목록 줄은 모든 기능 이름을 담고 있어 다른 기능의 단어(예: '사내')가 섞이므로 제외
+        if _FEATURE_LINE.search(s.text):
+            continue
         if name in s.text or compact in s.text.replace(" ", "") or (s.heading and compact in s.heading.replace(" ", "")):
             out.append(s)
     return out
