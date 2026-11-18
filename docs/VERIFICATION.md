@@ -210,3 +210,193 @@ failed to solve: nginx:1.27-alpine: failed to resolve source metadata for docker
 ## 9. 정리
 
 검증 후 `scripts/dev.sh down --purge`로 모든 프로세스를 중지하고 임시 PGDATA(`.devdata/`)를 삭제했습니다.
+
+---
+
+# 추가 검증: 고객사 등록·연습 시나리오·학습 도우미 (2026-11-18)
+
+위 1~9장은 첫 버전(2026-11-12)의 기록이라 그대로 두었습니다. 아래는 이번 변경에 대해 실제로 실행한 명령과 결과입니다. 환경: Linux, Python 3.13.18, Node v22.23.4, PostgreSQL 16(네이티브 바이너리), LLM은 **mock 모드**(API 키 없음).
+
+## A. API 단위 테스트
+
+```
+$ cd api && python3 -m pytest -q
+93 passed in 12.99s
+```
+
+75 → 93건. 새로 추가된 18건: 시나리오 A~E 문서 → mock 추출 → 판정이 기대값과 같은지(5), 시나리오가 가상 표시를 갖췄는지, 설문 문항의 조문이 KB에 있는지, 등록 API(권한 401/403, 검증 422, 중복 409, 감사 로그, 1단계 시작), 빈 고객에 직접 올린 자료 흐름, 고객 담당자 계정의 접근 범위(다른 고객사 8개 경로 403), 비밀번호 해시, B·C·D·E 전체 흐름, 폼에서 고친 설문이 시나리오 기본값보다 우선, A사 샘플 자료 유지, 001 이후 마이그레이션이 추가 전용인지.
+
+## B. 골든셋
+
+```
+$ cd api && python3 -m app.golden
+골든셋(합성 33건) 파이프라인 일치율: 32/33 = 97.0% | 규칙 엔진 일치율: 33/33 = 100.0% | 임계 90% → 통과
+  불일치 [pipeline] G27 자사 채용에 쓰는 내부 선별 도구(내부 사용이나 고영향): {"art33_recommended": {"expected": false, "got": true}}
+```
+
+28 → 33건(G29~G33은 연습 시나리오 사례). 추가한 5건은 시나리오 문서와 같은 문장이라 맞는 것이 당연하며, 일치율이 96.4% → 97.0%로 오른 것은 추출기가 나아졌다는 뜻이 아닙니다. 기존 불일치 G27은 그대로입니다. 규칙 엔진(`engine.py`)은 고치지 않았습니다.
+
+## C. 웹 타입체크·빌드
+
+```
+$ cd web && npx tsc --noEmit        → 출력 없음, 종료 코드 0
+$ cd web && npm run build           → 종료 코드 0. 새 경로: ○ /customers/new, ○ /learn
+```
+
+## D. 이전 버전 DB에서의 업그레이드(마이그레이션)
+
+사용자의 맥에 이전 버전으로 만든 Postgres 볼륨이 있으므로, 같은 상황을 만들어 확인했습니다.
+
+1. 이전 커밋(`72a0278`)을 별도 작업 트리로 꺼내, 그 코드로 새 PostgreSQL 16에 `python -m app.migrate && python -m app.seed` → 이전 버전 API 기동 → 이전 버전 `scripts/e2e_smoke.py` 전체 통과(A사가 8단계 끝까지 간 상태).
+2. 이 시점의 DB를 기록(행 수, A사 행의 값·해시, 증적 체인 해시, 판정 결과 해시):
+
+```
+customers 1
+users 3
+engagements 1
+documents 4
+ai_systems 3
+facts 36
+classifications 3
+gap_reports 1
+generated_documents 4
+evidence_items 7
+change_events 2
+reassessment_tasks 3
+audit_logs 27
+tech_checks 2
+kb_versions 2
+kb_clauses 31
+llm_usage 3
+job_runs 4
+golden_runs 1
+customer|1|A사 (가상)|40|t|50|t|a21a167c8c0e354905d45363e039ad81|ac4e009d813bf133585d7be887d270a6|ea8d36ac855a98292ddff891841e8b29
+engagement|1|evidence_stored
+evidence|423d76e61eba4f8f5aa9d607e7ad5812
+cls|6649e7e7b2822e051cf4839a27d0f386
+migrations|001_init.sql
+cust_cols|id,name,description,employees,is_synthetic,allow_external,monthly_budget_usd,subscribed,current_state,tech_targets,created_at
+```
+
+3. API를 끄고 **새 코드**로 `scripts/dev.sh up`(같은 PGDATA):
+
+```
+적용된 마이그레이션: ['002_customer_registration.sql']
+시드 완료: KB v1, 고객 'A사 (가상)', 데모 계정 3개 (비밀번호 demo1234)
+실행 완료: 웹 http://localhost:3000 · API http://localhost:8000 · demo-service http://localhost:8081
+$ python3 -m app.migrate            → 적용된 마이그레이션: 없음(최신)
+$ python3 -m app.migrate --check    → 스키마 검사: 모델과 일치
+```
+
+4. 같은 기록을 다시 떠서 `diff`: 달라진 줄은 두 개뿐입니다(적용된 마이그레이션 목록에 002 추가, `customers` 컬럼 목록 끝에 `industry,scenario` 추가). 모든 테이블의 행 수, A사 값, 증적 체인 해시, 판정 결과 해시는 동일.
+5. 새 API로 확인: A사 `evidence_stored`, 증적 7건 체인 검증 OK, 접수 자료 4건, 판정 3건 확정 유지, `scenario=a`·`industry=전자상거래·유통`으로 채워짐, 샘플 자료 다시 불러와도 중복 없음(`[]`). 업그레이드된 DB에 E사(가상)를 등록해 갭 리포트까지 진행 → `['GAP-LABEL', 'GAP-METADATA', 'GAP-DEEPFAKE']`. API 로그에 error/traceback 없음.
+
+새 DB에서는 `적용된 마이그레이션: ['001_init.sql', '002_customer_registration.sql']`로 뜨고 `--check`도 일치합니다.
+
+확인하지 않은 것: 새 스키마에서 이전 버전 코드로 되돌리는 경우(추가 컬럼에 DB 기본값이 있어 INSERT는 될 것으로 보이나 실행해 보지 않음).
+
+## E. E2E 스모크 (새 DB, 네이티브, PostgreSQL 16)
+
+```
+$ scripts/dev.sh up
+$ python3 scripts/e2e_smoke.py --api http://127.0.0.1:8000 --web http://127.0.0.1:3000   → 종료 코드 0
+```
+
+기존 13단계(A사 전체 흐름)는 그대로 통과했고, 추가된 단계의 출력은 다음과 같습니다.
+
+```
+[14] 고객사 등록: 권한·검증
+  ✓ 고객 담당자는 고객사 등록 불가(403)
+  ✓ 잘못된 업종은 422, 이미 있는 회사명은 409
+[15] 컨설턴트: 연습 시나리오 B(채용 자동 평가) 등록 + 고객 담당자 계정
+  ✓ B사 (가상) 등록 — 1단계(자료 접수)에서 시작
+  ✓ 시나리오 B 가상 자료 4건 접수, 외부 반출 금지
+  ✓ 샘플 자료 다시 불러와도 중복 접수 없음
+  ✓ 고객사 목록에 추가됨
+[16] B사: 인벤토리 → 판정 → 확정 → 갭 리포트
+  ✓ 지원서 자동 평가: 고영향 후보(채용 영역 + 중대한 영향)
+  ✓ 사람 검토 없음 → 제34조 책무·제35조 영향평가 대상
+  ✓ 생성형은 아니지만 고영향이라 사전 고지 필요
+  ✓ 면접 답변 분석: 형식적 검토(쟁점) → 고영향 후보 + 제33조 확인 요청 권고
+  ✓ 갭 8건: ['GAP-NOTICE', 'GAP-TOS', 'GAP-RISK', 'GAP-EXPLAIN', 'GAP-OVERSIGHT', 'GAP-RETENTION', 'GAP-IMPACT', 'GAP-CONFIRM']
+  ✓ 위험관리·설명·사람 감독·5년 보관 갭 포함
+  ✓ 고영향 문서(위험관리 정책 골격·영향평가 체크리스트) 생성
+[17] B사 고객 담당자: 자기 고객사만 조회
+  ✓ 등록한 계정으로 로그인(고객 담당자)
+  ✓ 목록에 B사만 보임
+  ✓ 다른 고객사 조회·고객사 등록은 403 (A사 담당자도 B사 조회 불가)
+[18] 운영자: 연습 시나리오 D(사내 업무용 AI) 등록 → 판정 → 갭
+  ✓ D사 (가상) 등록, 가상 자료 3건 접수
+  ✓ 시스템 2개: ['사내 문서 요약', '코드 작성 도우미']
+  ✓ D사: 내부 업무용 예외 — 제31조 의무 없음
+  ✓ D사: 고영향 아님
+  ✓ 갭 0건 + '의무 거의 없음' 설명
+  ✓ 감사 로그에 customer.create 기록
+  ✓ 감사 로그에 비밀번호 없음
+[19] 웹 포털(Next.js) 확인  … /learn, /customers/new, /customers/2/classification, /customers/3/gap 포함 14항목 ✓
+
+E2E 스모크 테스트 통과
+```
+
+✓ 표시는 모두 85줄입니다.
+
+## F. 브라우저 확인 (Playwright + Chromium, 헤드리스)
+
+E 다음에 같은 DB에서 컨설턴트 화면을 실제로 클릭했습니다(일회용 스크립트, 저장소에는 넣지 않음).
+
+```
+OK 대시보드에 고객사 등록 버튼
+OK 이미 있는 이름은 자동으로 'B사 2 (가상)'
+OK 시나리오 C 프리셋으로 폼 채움 [True, False, False, True, True, True, True, True]
+OK C사 등록 → 개요 화면, 1단계 자료 접수, 자료 4건
+OK '이 단계는?' 펼침
+OK 인벤토리 추출 → 인벤토리 검토
+OK 판정 초안 생성 → 판정 초안
+OK C사 판정: 제외 가능(쟁점) + 타법 이행 간주
+OK ? 클릭 → 설명 표시
+OK 설명의 조문 링크 → KB 해당 조문 강조
+OK 판정 확정
+OK 갭 리포트 생성 → 갭 리포트
+OK C사 갭 1건(GAP-CONFIRM)
+OK 기술 점검 안내
+OK D사 갭 0건 — '의무 거의 없음' 안내
+OK 학습 화면: 질문 5개, 시나리오 표 9행(A3+B2+C1+D2+E1)
+OK 학습 화면 → 시나리오 E 미리 선택
+OK 빈 고객 F사 등록: 자료 0건, 샘플 버튼 없음
+OK 인벤토리 추출 → 인벤토리 검토
+OK 판정 초안 생성 → 판정 초안
+OK 빈 고객: 직접 올린 자료에서 시스템 2개 판정
+OK 중복 이름 오류 표시
+OK C사 담당자: 목록에 C사만, 등록 버튼 없음
+OK 고객 담당자는 등록 화면 사용 불가
+OK 고객 담당자가 A사 주소로 직접 가면 거절
+pageerrors []
+console errors []
+```
+
+- 그 뒤 새 DB에서 기존 `scripts/ui_click_smoke.py`(A사 흐름 클릭)도 다시 돌려 11개 항목 OK, `pageerrors []`.
+- 이 과정에서 찾아 고친 것 2건: (1) 등록 화면에서 기존 고객 목록이 오기 전에 시나리오를 고르면 중복 이름을 제안하던 문제 → 목록을 받은 뒤에만 선택 가능하게 함. (2) 빈 고객 개요 화면에서 고객 정보가 오기 전 잠깐 샘플 버튼이 보이던 문제.
+- `docs/guide/img/14~21`은 이 실행에서 찍은 화면입니다(1280px 폭, 일부는 위쪽만 잘라 저장).
+
+## G. Docker
+
+```
+$ docker compose config -q     → 종료 코드 0
+$ docker compose build api     → Cannot connect to the Docker daemon at unix:///var/run/docker.sock
+```
+
+**이번에도 이미지 빌드와 `docker compose up`은 실행하지 못했습니다**(이 세션에는 Docker 데몬이 없고, 이전 기록대로 Docker Hub도 차단). Dockerfile은 바꾸지 않았습니다. API 이미지는 `COPY app`·`COPY migrations`로 새 파일(`app/scenarios.py`, `app/data/scenarios/`, `migrations/002_*.sql`)을 포함하게 되어 있고, 컨테이너 시작 명령(`migrate → seed → uvicorn`)은 D·E에서 네이티브로 같은 순서를 확인했습니다. 맥의 기존 볼륨에서 `git pull && docker compose up --build`가 실제로 되는지는 사용자 환경에서 확인이 필요합니다.
+
+## H. 이번 변경에서 검증하지 못한 것
+
+| 항목 | 상태 |
+|---|---|
+| Docker 이미지 빌드·기존 볼륨에서의 `docker compose up --build` | 미검증(데몬 없음). 같은 마이그레이션을 네이티브 PostgreSQL 16에서만 확인 |
+| 연습 시나리오 문서를 실제 LLM(Anthropic·내부 추론)으로 추출 | 미검증(키 없음). mock 규칙으로만 확인 |
+| 학습 도우미·시나리오 설명의 법률 검토 | 없음. 법령 KB(`kb_v1.json`) 요약 범위 안에서만 작성 |
+| 모바일 폭 화면 | 미확인(1280px 폭에서만 캡처) |
+| 스크린 리더 등 접근성 도구 | 미확인(? 버튼에 aria-label·키보드 포커스만 넣음) |
+
+## I. 정리
+
+검증 후 `scripts/dev.sh down --purge`로 모든 프로세스를 중지하고 임시 PGDATA(`.devdata/`)를 삭제했습니다. `scripts/dev.sh status`는 web·api·demo·postgres 모두 중지, 8000·3000·8081·55432 포트에 남은 프로세스 없음. 이전 버전 확인용 작업 트리도 제거했습니다.
