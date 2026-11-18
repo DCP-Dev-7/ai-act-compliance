@@ -4,7 +4,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: 사용 설명서 — 왼쪽 고정 목차(넓은 화면), 화면별 카드 = 캡처 + 4칸(무엇/어떻게/읽는 법/경영진 한 줄) */
+/* Layout: 사용 설명서 — 왼쪽 고정 목차(넓은 화면), 화면별 카드 = 캡처 + 3칸(무엇/어떻게/읽는 법) */
 :root{
   --bg:#f5f6f4; --surface:#ffffff; --ink:#18211d; --muted:#5b6862; --line:#d8dfdb;
   --accent:#2c6e57; --accent-soft:#e2efe9; --navy:#1f3550; --navy-soft:#e5ebf3;
@@ -62,12 +62,10 @@ td.k{font-weight:600;white-space:nowrap}
 @media (max-width:720px){.quad{grid-template-columns:1fr}}
 .quad>div{padding:16px 20px;border-bottom:1px solid var(--line);display:grid;gap:6px;align-content:start;min-width:0}
 .quad>div:nth-child(odd){border-right:1px solid var(--line)}
+.quad>div:last-child:nth-child(odd){grid-column:1/-1;border-right:0}
 @media (max-width:720px){.quad>div:nth-child(odd){border-right:0}}
 .quad h4{margin:0;font-size:.78rem;letter-spacing:.06em;color:var(--accent);font-weight:600}
 .quad p,.quad li{font-size:.92rem}
-.say{grid-column:1/-1;background:var(--navy-soft);border-bottom:0!important}
-.say h4{color:var(--navy)!important}
-.say p{font-size:1rem;font-weight:500}
 .btn{display:inline-block;font-size:.8rem;font-weight:600;padding:0 8px;border-radius:4px;background:var(--navy-soft);color:var(--navy);white-space:nowrap}
 .tag{display:inline-block;font-size:.76rem;font-weight:600;padding:0 8px;border-radius:999px;background:var(--warn-bg);color:var(--warn);white-space:nowrap}
 .note{font-size:.86rem;color:var(--muted)}
@@ -98,7 +96,7 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
 <header>
   <div class="eyebrow">DCP 신사업 · AI 기본법 준수 플랫폼 데모 · 사용 가이드</div>
   <h1>화면마다 무엇을 보고, 어떻게 설명하나</h1>
-  <p class="lede">각 화면이 무엇인지, 어떤 버튼을 누르는지, 결과를 어떻게 읽는지, 경영진에게 한 줄로 어떻게 말하는지를 정리했습니다. 캡처는 가상 고객 "A사"로 실제 데모를 돌린 화면입니다.</p>
+  <p class="lede">각 화면이 무엇인지, 어떤 버튼을 누르는지, 결과를 어떻게 읽는지를 정리했습니다. 캡처는 가상 고객 "A사"로 실제 데모를 돌린 화면입니다.</p>
 </header>
 
 <div class="part">Part 1 · 시작</div>
@@ -190,7 +188,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><p>고객사 이름(<b>A사 (가상)</b>)을 눌러 들어갑니다.</p></div>
       <div><h4>결과 읽는 법</h4><ul><li><b>진행 상태·단계</b>: 8단계 중 어디인지 (1/8 = 자료 접수 중)</li><li><b>데이터 정책</b>: 고객 자료를 외부 AI에 보내도 되는지</li><li><b>증적</b>: 보관된 기록 수, <b>재평가 작업</b>: 다시 봐야 할 건수</li></ul></div>
       <div><h4>주의</h4><p>고객이 늘면 이 화면이 영업·운영 현황판이 됩니다.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"고객사마다 법 준수 진행 상황과 다시 봐야 할 일이 여기서 다 보입니다."</p></div>
     </div>
   </div>
 </section>
@@ -204,7 +201,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><ol><li><span class="btn">샘플 자료 불러오기(가상)</span> → 가상 자료 4건이 들어옴</li><li>오른쪽 버튼을 위에서부터 차례로 누르면 단계가 진행됨</li><li>실제 고객이라면 아래 "자료 올리기"에 문서를 넣음</li></ol></div>
       <div><h4>결과 읽는 법</h4><ul><li><b>현재 이행 상태(설문)</b>: 빨간 "아니오" = 고객이 아직 안 하고 있는 것. A사는 생성물 가시 표시만 "예"(이전 캡처에는 "있음/없음"). 고영향 AI에만 해당하는 4항목(제34조)은 안쪽 상자로 묶임</li><li><b>외부 LLM 호출</b>: "허용(비식별화 후 전송)" = 이름·연락처 등을 가린 뒤 AI에 보냄</li><li><b>월 예산</b>: 이 고객에게 쓸 AI 비용 한도와 사용액</li></ul></div>
       <div><h4>주의</h4><p><span class="btn">외부 반출 금지로 전환</span>을 누르면 이 고객 자료는 외부 AI(Claude)로 절대 나가지 않고 내부 모델이나 규칙으로만 처리됩니다.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"고객이 자료를 올리면 버튼 몇 번으로 진단부터 보관까지 진행되고, 고객 자료를 외부로 보낼지 말지도 고객별로 막을 수 있습니다."</p></div>
     </div>
   </div>
 </section>
@@ -218,7 +214,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><p><span class="btn">인벤토리 추출</span>을 누르고 이 탭에서 확인합니다. 고객에게 "빠진 AI가 없는지" 확인받는 단계입니다.</p></div>
       <div><h4>결과 읽는 법</h4><ul><li><b>속성·값</b>: 목적, 외부 API 사용 여부, 생성형 여부, 산출물 종류, 이용자(고객용인지 내부용인지)</li><li><b>인용 근거(노란 박스)</b>: 그 값을 어느 문서 몇 번째 글자에서 찾았는지. 근거 없는 사실은 쓰지 않음</li><li><b>추출 방식</b>: mock이면 규칙, anthropic이면 Claude가 읽음</li></ul></div>
       <div><h4>주의</h4><p>다음 단계인 판정은 오직 여기 사실만 씁니다. 여기가 틀리면 판정도 틀리므로, 실제 업무에서는 고객 확인이 중요합니다.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"AI가 고객 문서를 읽고 사용 중인 AI 목록을 만드는데, 모든 내용에 원문 출처가 붙어 있어 지어낸 내용이 없습니다."</p></div>
     </div>
   </div>
 </section>
@@ -232,7 +227,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><ol><li>개요 화면에서 <span class="btn">판정 초안 생성</span></li><li>이 탭에서 근거를 읽고 AI마다 <span class="btn">이 판정 확정</span></li><li>확정해야 다음 단계(갭 리포트)가 열림</li></ol></div>
       <div><h4>결과 읽는 법</h4><ul><li><b>왼쪽 칸</b>: 사업자 지위, 생성형 여부, 제31조 의무 3가지(<span class="tag">필요</span>/해당 없음), 내부 업무용 예외</li><li><b>오른쪽 칸</b>: 고영향 여부와 그 판단 2단계(영역 → 중대한 영향)</li><li><b>판정 근거</b>: 번호마다 법 조문(회색 태그) + 고객 원문(노란 박스)</li></ul></div>
       <div><h4>A사 결과</h4><p>이미지·문구 생성은 고객에게 제공되므로 사전 고지와 생성물 표시 <b>필요</b>. 고객문의 요약은 직원만 쓰므로 <b>예외 적용</b>. 세 개 모두 고영향 아님.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"판단은 법 조문을 그대로 옮긴 규칙이 하고, 근거가 조문과 원문으로 다 보이며, 최종 확정은 반드시 사람이 합니다."</p></div>
     </div>
   </div>
   <img src="img/05-classification-internal.jpg" alt="고객문의 요약의 내부 업무용 예외 판정" loading="lazy" style="width:100%;border:1px solid var(--line);border-radius:8px">
@@ -248,7 +242,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><p><span class="btn">갭 리포트 생성</span>을 누르면 표와 함께 아래에 고객 제출용 HTML 보고서가 만들어집니다.</p></div>
       <div><h4>결과 읽는 법</h4><ul><li><b>코드</b>: GAP-NOTICE(사전 고지 없음), GAP-METADATA(이미지 메타데이터 없음), GAP-TOS(약관 AI 조항 없음)</li><li><b>심각도</b>: 높음 = 과태료나 직접 의무 위반 위험</li><li><b>담당·기한</b>: 고객사 안에서 누가 언제까지 고칠지 제안</li><li><b>근거 조문</b>: 왜 고쳐야 하는지</li></ul></div>
       <div><h4>상품 연결</h4><p>여기까지가 <b>진단 상품(300만원 가정)</b>의 결과물입니다.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"A사는 고칠 것이 3건이고, 그중 2건은 심각도 높음입니다. 담당과 기한까지 정리돼서 고객이 바로 실행할 수 있습니다."</p></div>
     </div>
   </div>
 </section>
@@ -262,7 +255,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><ol><li><span class="btn">문서 초안 생성</span></li><li>왼쪽 목록에서 문서를 골라 오른쪽에서 읽음</li><li>확인이 끝나면 <span class="btn">문서 승인</span> → 확인창에서 확인</li></ol></div>
       <div><h4>결과 읽는 법</h4><ul><li>문단마다 근거 조문 태그가 붙음</li><li><span class="tag">근거 미확인 1</span>: 조문과 연결되지 않은 문장이 1개 있음 → 사람이 꼭 검토</li><li><b>작성: mock(템플릿)</b> 또는 anthropic: 누가 썼는지</li></ul></div>
       <div><h4>상품 연결</h4><p>이 문서들이 <b>투명성 패키지(800만원 가정)</b>의 결과물입니다. 고객 개발팀이 그대로 화면과 약관에 반영합니다.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"고칠 방법까지 문서로 바로 나오고, AI가 근거 없이 쓴 문장은 자동으로 표시돼서 사람이 거릅니다."</p></div>
     </div>
   </div>
 </section>
@@ -276,7 +268,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><ol><li><span class="btn">증적 보관(승인본)</span>: 승인된 결과를 금고에 넣음</li><li><span class="btn">체인 검증</span>: 금고 안 기록이 하나도 바뀌지 않았는지 검사</li><li><b>원본</b>: 보관된 파일 열람</li></ol></div>
       <div><h4>결과 읽는 법</h4><ul><li><b>SHA-256</b>: 파일의 지문</li><li><b>체인 해시(직전 → 현재)</b>: 앞 기록과 사슬처럼 엮인 값. 1번은 0000…에서 시작</li><li>체인 검증 "정상" = 위변조 없음</li></ul></div>
       <div><h4>상품 연결</h4><p><b>증적 보관 구독(월 100만원 가정)</b>의 핵심. 운영 환경에서는 DCP 국내 센터 안에 보관합니다.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"법이 요구하는 5년 보관을 DCP 데이터센터가 해 주고, 단 한 글자라도 바뀌면 바로 드러나는 구조입니다. IDC 사업자만 할 수 있는 상품입니다."</p></div>
     </div>
   </div>
 </section>
@@ -290,7 +281,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><p><span class="btn">지금 점검</span>. 평소에는 매주 자동으로 돕니다. 허락받은 주소(허용 목록)만 점검합니다.</p></div>
       <div><h4>결과 읽는 법</h4><ul><li><b>통과 2 / 미흡 2</b></li><li>미흡: 메인 화면(/)에 AI 고지 문구 없음</li><li>통과: 생성 화면(generate.html)에는 고지 있음</li><li>통과: 이미지 1개에 AIGenerated=true 표시 있음 / 미흡: 다른 이미지에는 없음</li><li>결과는 증적 #5로 자동 보관</li></ul></div>
       <div><h4>의미</h4><p>문서만 고친 게 아니라 <b>실제 서비스에 반영됐는지</b>를 계속 확인합니다. 데모의 A사 사이트는 가상으로 만든 것입니다.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"고객이 실제로 고쳤는지 시스템이 매주 직접 확인하고, 그 결과까지 증거로 남깁니다."</p></div>
     </div>
   </div>
 </section>
@@ -304,7 +294,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><ol><li><span class="btn">법령 변경 반영(시뮬레이션)</span>: "사람이 일부 수정한 AI 이미지도 표시해야 한다"는 <b>가상</b> 가이드라인을 적용</li><li>재평가 작업 2건이 생김</li><li>판정 탭에서 <span class="btn">판정 초안 생성(재판정)</span> → 확정</li><li>여기로 돌아와 <span class="btn">완료 처리</span></li></ol></div>
       <div><h4>결과 읽는 법</h4><ul><li><b>재평가 작업</b>: 미해결/완료, 대상 AI, 사유, 관련 조문</li><li><b>변경 이벤트</b>: 법 버전이 2026.01-v1 → 2026.11-v2-sim으로 바뀐 내용과 무엇이 추가됐는지</li><li>고객문의 요약(내부용)은 영향 없으므로 작업이 안 생김</li></ul></div>
       <div><h4>상품 연결</h4><p>구독 고객에게 "법이 바뀌면 저희가 먼저 알려드립니다"를 제공하는 기능입니다.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"법이 바뀌면 영향받는 고객과 AI를 시스템이 바로 찾아 다시 판정하게 합니다. 이것이 매달 구독료를 받는 이유입니다."</p></div>
     </div>
   </div>
   <img src="img/11-changes-done.jpg" alt="재평가 작업 완료 화면" loading="lazy" style="width:100%;border:1px solid var(--line);border-radius:8px">
@@ -320,7 +309,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><p>읽기 전용입니다. 판정 근거의 회색 조문 태그가 여기 항목을 가리킵니다.</p></div>
       <div><h4>결과 읽는 법</h4><ul><li><b>버전·기준일</b>: 지금 어느 법령 기준으로 판정하는지</li><li><b>요약 — 원문 확인 필요</b>: 원문이 아니라 요약이라는 표시</li></ul></div>
       <div><h4>주의</h4><p>지금 화면은 시뮬레이션 v2가 적용된 상태라 "가상 변경" 안내가 함께 보입니다.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"법 조문을 버전별로 관리하고 출처를 다 달아 두어서, 판정이 어느 시점의 어떤 법 기준인지 항상 설명할 수 있습니다."</p></div>
     </div>
   </div>
 </section>
@@ -334,7 +322,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><p>평소에는 보기만 합니다. 시연 때는 ops@demo로 들어가 <span class="btn">지금 실행</span>을 누르면 예약된 작업을 즉시 돌릴 수 있습니다.</p></div>
       <div><h4>결과 읽는 법</h4><ul><li><b>LLM 구성</b>: 지금 쓰는 AI와 단가(입력 $8 / 출력 $40, 100만 토큰당)</li><li><b>골든셋 회귀</b>: 정답 아는 시험 33문제 중 맞힌 비율. 90% 아래면 새 설정을 "승격 차단"</li><li><b>자동화 작업 4개</b>: 매일 증적 검증, 매주 기술 점검, 매월 보고서 초안, 매일 골든셋 시험</li><li><b>고객별 예산·토큰 사용량</b>: AI 비용</li></ul></div>
       <div><h4>주의</h4><p>골든셋 96.4%는 시스템이 스스로 만든 시험 기준이라, 실제 고객 문서에서의 정확도가 아닙니다. "품질이 떨어지지 않았는지 보는 경보"로 설명하세요.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"점검·보관·보고는 밤사이 자동으로 돌고, AI 품질이 떨어지면 시스템이 스스로 막습니다. 운영 인력이 거의 필요 없습니다."</p></div>
     </div>
   </div>
 </section>
@@ -351,7 +338,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-si
       <div><h4>어떻게 쓰나</h4><ul><li><b>빈 고객으로 시작</b>: 회사 정보만 넣고 자료는 나중에 직접 올림</li><li><b>연습 시나리오로 시작</b>: B~E사 중 하나를 고르면 폼과 가상 자료가 채워짐</li><li>고객 담당자 로그인(이메일·비밀번호)을 함께 만들 수 있음</li></ul></div>
       <div><h4>항목 읽는 법</h4><ul><li><b>외부 LLM 호출 허용</b>: 켜면 개인정보를 가린 뒤 외부 AI로 전송, 끄면 외부 반출 금지</li><li><b>현재 이행 상태 8문항</b>: 문항마다 예(하고 있음) / 아니오(안 하고 있음)를 고름. 8문항 모두 답해야 등록됨(시나리오는 기본 답이 미리 선택). 갭 리포트가 이 답과 법의 요구를 비교</li><li><b>안쪽 상자 "고영향 AI인 경우에만 해당 (제34조)"</b>: 고영향 후보가 아니면 "아니오"여도 갭으로 잡히지 않음</li></ul></div>
       <div><h4>주의</h4><p>같은 회사명은 다시 쓸 수 없습니다. 가상 데이터 전용이므로 실제 회사명·개인정보를 넣지 마세요. 등록은 감사 로그에 남습니다.</p></div>
-      <div class="say"><h4>경영진에게 한 줄</h4><p>"새 고객이 오면 여기서 등록하고, 그 순간부터 진단 8단계가 같은 방식으로 돌아갑니다."</p></div>
     </div>
   </div>
 </section>

@@ -10,6 +10,7 @@ DCP의 "AI 기본법 준수 패키지"(진단 → 체계 구축 → 증적 보�
 운영 환경에서는 고객 자료와 증적이 DCP 국내 데이터센터 안에만 있어야 합니다. 이 데모는 가상 데이터와 공개 법령 요약만 쓰므로 노트북에서 돌릴 수 있습니다.
 
 - 화면별 사용 가이드(용어 풀이, 결과 읽는 법, 고객사 등록, 연습 시나리오로 법 이해하기, 10분 시연 순서, 예상 질문): [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)
+  로그인한 뒤 상단 메뉴 **사용 가이드**(`/guide`)에서도 같은 내용을 볼 수 있습니다. 원본은 `docs/USER_GUIDE.md`이고 앱은 그 사본을 씁니다 — **가이드 수정 후 `scripts/sync_guide.sh` 실행**(아래 5절 참고).
 - IDC 서버 구성안(하드웨어·소프트웨어 스택, AI 추론, 보안): [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md)
 - 검증 기록: [`docs/VERIFICATION.md`](docs/VERIFICATION.md)
 
@@ -29,6 +30,7 @@ DCP의 "AI 기본법 준수 패키지"(진단 → 체계 구축 → 증적 보�
 | M7 변경 감지 | (a) KB 버전 변경 → 조문 diff → 영향받는 확정 판정 → 재평가 작업 (b) 고객 릴리스 웹훅 | `api/app/changes.py`, 화면 `변경·재평가` |
 | M8 워크플로·승인 | 8단계 상태, 컨설턴트만 확정·승인, 모든 작업 감사 로그 | `api/app/workflow.py`, `api/app/services.py`, `audit_logs` |
 | 고객사 등록·연습 시나리오 | 고객사 등록(컨설턴트·운영자, 감사 로그), 고객 담당자 계정 생성, 가상 시나리오 B~E(설문 프리셋 + 가상 문서), 설문 8문항 설명 | `POST /customers`, `GET /scenarios`, `api/app/scenarios.py`, `api/app/data/scenarios/`, 화면 `/customers/new` |
+| 사용 가이드(앱 안) | `docs/USER_GUIDE.md`를 서버에서 HTML로 바꿔 보여 줌(react-markdown + remark-gfm + rehype-slug). 옆 목차, 캡처, 제목 앵커 | 화면 `/guide`, `web/lib/guide.ts`, `scripts/sync_guide.sh`, 사본 `web/content/USER_GUIDE.md`·`web/public/guide/img/` |
 | 학습 도우미 | 'AI 기본법 한눈에'(결정 흐름·시나리오 비교), 단계별 '이 단계는?', 판정 항목별 `?` 설명과 KB 조문 링크 | 화면 `/learn`, `web/lib/learn.ts`, `web/components/Help.tsx` |
 | M9 연동 | AI 게이트웨이 로그(JSON Lines)를 증적으로 적재 | `POST /customers/{id}/gateway-logs` |
 | 운영 자동화 | APScheduler 작업 4종, `/health`, `/metrics`, 운영 콘솔 | `api/app/jobs.py`, 화면 `/ops` |
@@ -140,7 +142,22 @@ scripts/dev.sh down --purge                 # 중지 + 임시 데이터 삭제
 - `WEB_MODE=dev scripts/dev.sh up` 으로 Next.js 개발 서버를 쓸 수 있습니다(기본은 빌드 후 standalone 서버).
 - 포트: `WEB_PORT`(3000), `API_PORT`(8000), `DEMO_PORT`(8081), `PGPORT`(55432).
 - E2E 스크립트는 **새로 시드한 상태**를 전제로 합니다. 다시 돌리려면 `down --purge` 후 `up`.
-- `make test`(단위 테스트), `make golden`(골든셋 일치율), `make build`(웹 타입체크+빌드).
+- `make test`(단위 테스트 + 가이드 사본 일치 검사), `make golden`(골든셋 일치율), `make build`(가이드 사본 확인 + 웹 타입체크 + 빌드).
+
+### 사용 가이드를 고쳤을 때
+
+앱의 `/guide` 화면은 `docs/USER_GUIDE.md`와 `docs/guide/img/`의 **사본**(`web/content/USER_GUIDE.md`, `web/public/guide/img/`)을 읽습니다. 웹 Docker 빌드 컨텍스트가 `./web`이라 빌드할 때 `docs/`를 볼 수 없기 때문입니다. 사본은 직접 고치지 않습니다.
+
+```bash
+# 1) docs/USER_GUIDE.md 또는 docs/guide/img/ 를 고친다
+scripts/sync_guide.sh            # 2) 가이드 수정 후 scripts/sync_guide.sh 실행 → 사본 갱신 (make guide-sync 도 같음)
+scripts/sync_guide.sh --check    # 3) 사본이 원본과 같은지 확인. 다르면 종료 코드 1 (make guide-check, cd web && npm run check:guide 도 같음)
+git add docs web/content web/public/guide   # 4) 원본과 사본을 함께 커밋
+```
+
+- 사본이 원본과 다르면 `make test`(`api/tests/test_guide_sync.py`)와 `make build`가 실패합니다.
+- 가이드는 빌드할 때 정적 페이지로 만들어지므로, 고친 뒤에는 웹을 다시 빌드해야 화면에 반영됩니다(`docker compose up --build`, 네이티브는 `cd web && npm run build` 후 `scripts/dev.sh up`).
+- `docs/guide/index.html`(내려받아 보는 HTML 버전)은 따로 손으로 관리하는 파일이라 이 스크립트가 갱신하지 않습니다.
 
 ## 6. 데모 시나리오 따라하기 (A사 흐름)
 

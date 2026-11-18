@@ -46,7 +46,7 @@ export default function Dashboard() {
         )}
       </div>
       {user && user.role !== "customer" && (
-        <p className="hint">처음이라면 <Link href="/learn">AI 기본법 한눈에</Link>를 먼저 읽고, ‘고객사 등록’에서 연습 시나리오(B~E사)를 골라 1단계부터 직접 돌려 보세요. 시나리오마다 판정 결과가 다릅니다.</p>
+        <p className="hint">처음이라면 <Link href="/learn">AI 기본법 한눈에</Link>를 먼저 읽고, ‘고객사 등록’에서 연습 시나리오(B~E사)를 골라 1단계부터 직접 돌려 보세요. 시나리오마다 판정 결과가 다릅니다. 화면별 설명은 <Link href="/guide#1-고객사-현황">사용 가이드에서 보기</Link>.</p>
       )}
     </>
   );

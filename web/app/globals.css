@@ -35,8 +35,8 @@ p { margin: 0 0 8px; }
   min-height: 52px; flex-wrap: wrap;
 }
 .topbar .brand { font-weight: 700; letter-spacing: -0.01em; color: #fff; text-decoration: none; }
-.topbar nav { display: flex; gap: 4px; flex: 1; }
-.topbar nav a { color: #d5e0ee; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 14px; }
+.topbar nav { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+.topbar nav a { white-space: nowrap; color: #d5e0ee; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: 14px; }
 .topbar nav a.on, .topbar nav a:hover { background: rgba(255,255,255,.14); color: #fff; }
 .topbar .who { font-size: 13px; color: #d5e0ee; display: flex; gap: 10px; align-items: center; }
 main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 60px; }
@@ -91,7 +91,7 @@ pre.doc { white-space: pre-wrap; font-size: 12.5px; background: #fff; border: 1p
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .hint { font-size: 12px; color: var(--ink-2); }
 details > summary { cursor: pointer; font-size: 13px; color: var(--navy); }
-@media (max-width: 640px) { .kv { grid-template-columns: 1fr; } main { padding: 16px 12px 40px; } }
+@media (max-width: 640px) { .kv { grid-template-columns: 1fr; } main { padding: 16px 12px 40px; } .topbar { gap: 2px 14px; padding: 8px 12px; } .topbar nav { flex: 1 0 100%; order: 3; } }
 
 /* ---- 고객사 등록 폼 ---- */
 .choice { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
@@ -186,3 +186,41 @@ table.scn .lesson { font-size: 12.5px; color: var(--ink-2); margin: 4px 0; }
   .qlist { grid-template-columns: 1fr; }
 }
 .choice[hidden] { display: none; }
+
+/* ---- 사용 가이드(/guide) ---- */
+.guide { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 14px; }
+/* 좁은 화면에서는 본문 맨 위의 목차만 쓴다 */
+.guide-toc { display: none; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 13px; }
+.guide-toc ul { list-style: none; margin: 6px 0 0; padding: 0; }
+.guide-toc a { display: block; padding: 3px 6px; border-radius: 5px; color: var(--ink-2); text-decoration: none; }
+.guide-toc a:hover { background: var(--accent-soft); color: var(--ink); }
+.guide-toc a.top { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); border-radius: 0; }
+.guide-body { padding: 20px 24px; margin-bottom: 0; min-width: 0; }
+.guide-body > :first-child { margin-top: 0; }
+.guide-body h2 { font-size: 19px; margin: 30px 0 10px; padding-top: 4px; letter-spacing: -0.01em; }
+.guide-body h3 { font-size: 15px; margin: 22px 0 8px; }
+.guide-body h2, .guide-body h3, .guide-body h4 { scroll-margin-top: 14px; }
+.guide-body :target { background: #fffaf0; box-shadow: -8px 0 0 #fffaf0, 8px 0 0 #fffaf0; outline: 2px solid #e0a500; outline-offset: 6px; border-radius: 4px; }
+.guide-body p, .guide-body ul, .guide-body ol { margin: 0 0 12px; }
+.guide-body ul, .guide-body ol { padding-left: 20px; }
+.guide-body li { margin-bottom: 4px; }
+.guide-body hr { border: 0; border-top: 1px solid var(--line); margin: 26px 0; }
+.guide-body blockquote { margin: 0 0 14px; padding: 8px 14px; border-left: 3px solid #e0a500; background: #fffaf0; font-size: 13.5px; color: #3d3320; }
+.guide-body blockquote p { white-space: pre-line; }
+.guide-body blockquote p:last-child { margin-bottom: 0; }
+.guide-body code { font-family: var(--mono); font-size: 12.5px; background: #efece4; border: 1px solid #e2ddd0; border-radius: 4px; padding: 0 4px; }
+.guide-body pre { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 0 0 14px; }
+.guide-body pre code { background: none; border: 0; padding: 0; }
+.guide-body .tablewrap { margin: 0 0 16px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.guide-body table { font-size: 13.5px; }
+.guide-body th { background: #f1ede3; color: var(--ink); font-size: 12.5px; padding: 7px 10px; }
+.guide-body th:empty { padding: 0; border: 0; }
+.guide-body td { padding: 8px 10px; line-height: 1.6; }
+.guide-body td:first-child { min-width: 108px; }
+.guide-body td + td, .guide-body th + th { border-left: 1px solid #ebe7dd; }
+.guide-body a.shot { display: block; margin: 4px 0 14px; }
+.guide-body img { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: 0 2px 8px rgba(23,33,43,.06); }
+@media (min-width: 1000px) {
+  .guide { grid-template-columns: 216px minmax(0, 1fr); align-items: start; }
+  .guide-toc { display: block; position: sticky; top: 14px; max-height: calc(100vh - 28px); overflow-y: auto; }
+}

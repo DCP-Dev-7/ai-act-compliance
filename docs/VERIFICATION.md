@@ -426,3 +426,58 @@ $ cd api && python3 -m pytest -q → 93 passed
 안쪽 상자 설명("해당 없으면 '아니오'로 두셔도 … 의무로 잡히지 않습니다")의 근거: `api/app/gap.py`는 판정 결과에 고영향 후보 시스템이 있을 때만 제34조 4항목(GAP-RISK·EXPLAIN·OVERSIGHT·RETENTION)을 봅니다. 기존 테스트의 D사(0건)·E사(3건, 제34조 갭 없음)가 4항목 모두 false인 상태에서 이를 확인합니다.
 
 `docs/guide/img/15-register-form.jpg`는 이 실행에서 다시 찍었습니다. **다시 찍지 않은 것**: 개요 화면이 나오는 이전 캡처(`02-overview.jpg`, `16-overview-step-help.jpg` 등)에는 여전히 "있음/없음" 배지와 한 줄 목록이 보입니다. 스크린 리더 실제 낭독은 확인하지 않았습니다(radiogroup·aria-labelledby·aria-invalid만 넣음). `scripts/e2e_smoke.py`·`ui_click_smoke.py`는 이번에 다시 돌리지 않았습니다(등록 폼을 다루지 않음). 검증 후 `scripts/dev.sh down --purge`로 정리했습니다.
+
+---
+
+# 추가 검증 — 앱 안의 사용 가이드(`/guide`) + '경영진에게 한 줄' 삭제 (2026-11-18)
+
+바꾼 것:
+
+- 상단 메뉴에 **사용 가이드**(모든 역할, `AI 기본법 한눈에` 다음)를 넣고 `/guide`에서 `docs/USER_GUIDE.md`를 보여 줍니다. 서버에서 react-markdown 10.1.0 + remark-gfm 4.0.1 + rehype-slug 6.0.0으로 HTML을 만들고(빌드 때 정적 생성, 실행 중 API 호출 없음), 넓은 화면(1000px 이상)에서는 옆 목차가 따라옵니다.
+- 웹 Docker 빌드 컨텍스트(`./web`)는 그대로 두고, `scripts/sync_guide.sh`가 원본(`docs/USER_GUIDE.md`, `docs/guide/img/`)을 `web/content/USER_GUIDE.md`, `web/public/guide/img/`로 복사합니다. `--check`는 사본이 다르면 종료 코드 1.
+- 가이드(`docs/USER_GUIDE.md`, `docs/guide/index.html`)에서 화면별 **"경영진에게 한 줄"** 12개와 머리말의 해당 문구를 지웠습니다(`index.html`은 `.say` 블록과 CSS도 삭제). "10분 시연 순서", "예상 질문과 답"은 그대로입니다.
+
+```
+$ cd web && npx tsc --noEmit          → 출력 없음, 종료 코드 0
+$ cd web && npm run build             → 성공 (/guide 는 ○ Static, 17개 경로)
+$ cd api && python3 -m pytest -q      → 94 passed (test_guide_sync.py 1건 추가)
+$ scripts/sync_guide.sh --check       → "가이드 사본이 원본과 같습니다 (USER_GUIDE.md + 이미지 22개)", 종료 코드 0
+$ python3 scripts/e2e_smoke.py --api http://127.0.0.1:8000 --web http://127.0.0.1:3000 → E2E 스모크 테스트 통과
+```
+
+사본 불일치 검사가 실제로 실패하는지 (각각 확인 후 `scripts/sync_guide.sh`로 되돌림):
+
+| 일부러 만든 차이 | `sync_guide.sh --check` | 그 밖 |
+|---|---|---|
+| `web/content/USER_GUIDE.md`에 한 줄 추가 | 종료 코드 1 | `npm run check:guide` 1, `pytest tests/test_guide_sync.py` 1 failed, `make build`가 `guide-check`에서 중단 |
+| 사본 이미지 한 장의 내용 변경 | 종료 코드 1 (`… differ`) | |
+| 사본에만 있는 이미지 추가 | 종료 코드 1 (`Only in web/public/guide/img`) | |
+| 사본 이미지 한 장 삭제 / 원본에만 새 이미지 | 종료 코드 1 (`Only in docs/guide/img`) | |
+
+`scripts/dev.sh up`(새 DB, PostgreSQL 16, mock, 새로 빌드한 standalone 서버) 뒤 Playwright + Chromium(헤드리스, 1280px)으로 확인한 것 — 모두 OK, 페이지 오류 0건, 4xx/5xx 응답 0건:
+
+- 로그인하지 않고 `/guide`를 열면 `/login`으로 이동, 메뉴 없음
+- `consultant@demo`, `a-company@demo`, `ops@demo` 모두 메뉴에 `사용 가이드`가 있고 눌러서 본문이 열림. 열려 있을 때 메뉴가 강조됨
+- 본문: h2 22개, 표 20개, 화면에 "경영진에게 한 줄" 없음
+- 이미지 22장: 주소가 `/guide/img/…`로 바뀌어 모두 HTTP 200, 브라우저에서 실제로 그려짐(naturalWidth > 0), 본문 폭을 넘지 않음
+- `#`으로 시작하는 링크 44개(본문 목차 + 옆 목차) 모두 대상 id가 있음. 본문 목차의 `갭 리포트`를 누르면 "5. 갭 리포트 (단계 5)"로 이동, 옆 목차의 `예상 질문과 답`도 이동, `/guide#용어-풀이`를 주소로 바로 열어도 그 위치로 감
+- 저장소의 다른 파일 링크 2개(`INFRASTRUCTURE.md`, `guide/index.html`)는 `https://github.com/DCP-Dev-7/ai-act-compliance/blob/main/docs/…`로 바뀜. 상대 경로로 남은 링크 0개
+- 옆 목차는 1280px에서 sticky, 390px 폭에서는 숨기고(본문 맨 위 목차 사용) 가로 넘침 없음
+- 고객사 현황 아래 안내문의 `사용 가이드에서 보기` 링크로 이동됨(컨설턴트·운영자에게만 보이는 안내문)
+
+구현하다 고친 것: remark-gfm 기본값이 물결표 하나를 취소선으로 처리해 "B~E사 … 1~13번" 사이 글자에 줄이 그어졌습니다. `singleTilde: false`로 껐습니다.
+
+`docs/guide/img/22-guide-in-app.jpg`는 이 실행에서 찍었습니다(1280×900, 컨설턴트 계정).
+
+검증하지 못한 것 / 알아 둘 것:
+
+| 항목 | 상태 |
+|---|---|
+| Docker 이미지 빌드(`docker compose up --build`)에서 `/guide` | **미검증**(이 환경에 Docker 데몬 없음). 사본은 `web/` 안에 커밋돼 있고 Dockerfile의 `COPY . .`와 `COPY public`으로 들어가도록 했지만 실제 이미지에서 확인하지 못함 |
+| GitHub 링크 2개가 실제로 열리는지 | 미확인(주소 형식만 확인. 저장소가 비공개면 GitHub 로그인이 필요) |
+| `/guide`의 로그인 보호 수준 | 다른 화면과 같은 방식(브라우저에서 세션 확인 후 `/login` 이동)입니다. 가이드는 정적 페이지라 **본문 글자와 캡처 파일(`/guide/img/*`)은 로그인 없이 주소를 직접 요청하면 내려받을 수 있습니다**. 가상 데이터라 그대로 두었고, 막으려면 서버 쪽 세션 검사가 따로 필요 |
+| `docs/guide/index.html` | "경영진에게 한 줄"만 지웠습니다. 그 밖의 내용은 `USER_GUIDE.md`보다 오래됐을 수 있고 동기화 대상이 아님. 브라우저로 열어 보지는 않음 |
+| 가이드의 1~21번 캡처 | 다시 찍지 않음. 상단 메뉴에 `사용 가이드`가 없는 화면이 그대로임(가이드 머리말에 적어 둠) |
+| 스크린 리더 | 미확인 |
+
+정리: 검증 후 `scripts/dev.sh down --purge`. `scripts/dev.sh status`는 web·api·demo·postgres 모두 중지.
