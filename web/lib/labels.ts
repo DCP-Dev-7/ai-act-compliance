@@ -49,3 +49,7 @@ export const EVIDENCE_KIND: Record<string, string> = {
   "document:risk_policy": "승인 문서 — 위험관리 정책",
   "document:impact_checklist": "승인 문서 — 영향평가 체크리스트",
 };
+
+// '현재 이행 상태' 설문 중 고영향 AI에만 요구되는 항목(제34조). 갭 리포트는 고영향 후보 시스템이 있을 때만 이 항목을 본다.
+const HIGH_IMPACT_STATE_KEYS = new Set(["risk_policy", "explanation_method", "human_oversight_killswitch", "doc_retention_5y"]);
+export const isHighImpactStateKey = (key: string) => HIGH_IMPACT_STATE_KEYS.has(key);

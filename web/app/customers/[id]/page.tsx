@@ -4,7 +4,7 @@ import { useState } from "react";
 import { api, fmt, useLoad } from "@/lib/api";
 import { Action, CustomerFrame, useCustomer } from "@/components/CustomerFrame";
 import { useSession } from "@/components/Shell";
-import { DOC_KIND } from "@/lib/labels";
+import { DOC_KIND, isHighImpactStateKey } from "@/lib/labels";
 import { STEP_HELP } from "@/lib/learn";
 
 const EXAMPLE_DOC = `[가상 데이터] 서비스 소개 메모
@@ -60,6 +60,11 @@ export default function CustomerOverview() {
       el: <Action label="증적 보관" path={`${base}/evidence/store-package`} roles={["consultant"]} onDone={reloadAll} /> },
   ];
 
+  const stateEntries = Object.entries(customer?.current_state ?? {}) as [string, boolean][];
+  const stateRow = ([k, v]: [string, boolean]) => (
+    <li key={k}>{meta?.state_labels[k] ?? k}: {v ? <span className="tag ok">예</span> : <span className="tag bad">아니오</span>}</li>
+  );
+
   const sc = (cat.data?.scenarios ?? []).find((x: any) => x.key === customer?.scenario);
 
   return (
@@ -90,11 +95,15 @@ export default function CustomerOverview() {
               <dt>현재 이행 상태(설문)</dt>
               <dd>
                 {Object.keys(customer.current_state).length === 0 ? <span className="sub">설문 접수 전</span> : (
-                  <ul className="plain">
-                    {Object.entries(customer.current_state).map(([k, v]) => (
-                      <li key={k}>{meta?.state_labels[k] ?? k}: {v ? <span className="tag ok">있음</span> : <span className="tag bad">없음</span>}</li>
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="plain">{stateEntries.filter(([k]) => !isHighImpactStateKey(k)).map(stateRow)}</ul>
+                    {stateEntries.some(([k]) => isHighImpactStateKey(k)) && (
+                      <div className="qbox ro">
+                        <h3>고영향 AI인 경우에만 해당 (제34조)</h3>
+                        <ul className="plain">{stateEntries.filter(([k]) => isHighImpactStateKey(k)).map(stateRow)}</ul>
+                      </div>
+                    )}
+                  </>
                 )}
               </dd>
             </dl>

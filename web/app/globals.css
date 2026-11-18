@@ -104,10 +104,30 @@ label.pick.on { border-color: var(--accent); background: var(--accent-soft); }
 label.pick input, label.check input { width: auto; margin-top: 4px; flex: none; }
 label.pick > span { display: flex; flex-direction: column; gap: 2px; }
 label.check { display: flex; gap: 8px; align-items: flex-start; color: var(--ink); font-size: 14px; margin: 10px 0 2px; cursor: pointer; }
-label.check.q { padding: 8px 0; margin: 0; border-bottom: 1px solid #ebe7dd; }
-label.check.q:last-child { border-bottom: 0; }
-label.check.q .hint { display: block; margin-top: 2px; }
-.qlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); column-gap: 28px; }
+/* 설문 문항: 왼쪽 설명, 오른쪽 예/아니오 */
+.q { display: flex; gap: 8px 20px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid #ebe7dd; font-size: 14px; }
+.qlist > .q:last-child { border-bottom: 0; }
+.q .qtext { flex: 1 1 340px; min-width: 0; }
+.q .qtext .hint { display: block; margin-top: 2px; }
+.q .qans { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.q.missing .seg { border-color: var(--bad); box-shadow: 0 0 0 2px var(--bad-soft); }
+.qerr { font-size: 12px; font-weight: 600; color: var(--bad); }
+.seg { display: inline-flex; border: 1px solid #b9b3a5; border-radius: 8px; background: #fff; overflow: hidden; }
+.seg label { position: relative; margin: 0; padding: 6px 12px; min-width: 104px; text-align: center; font-size: 13.5px; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.seg label + label { border-left: 1px solid #b9b3a5; }
+.seg input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.seg small { font-size: 11.5px; margin-left: 3px; }
+.seg label:hover { background: #f3f0e8; }
+.seg label.on { font-weight: 700; }
+.seg label.on.yes { background: var(--accent-soft); color: #07483e; box-shadow: inset 0 0 0 1px var(--accent); }
+.seg label.on.no { background: var(--bad-soft); color: var(--bad); box-shadow: inset 0 0 0 1px var(--bad); }
+.seg label:focus-within { outline: 2px solid var(--navy); outline-offset: -2px; }
+/* 고영향(제34조) 항목을 묶는 안쪽 상자 */
+.qbox { margin-top: 12px; padding: 12px 14px 4px; border: 1px solid #c9bfa6; border-left: 4px solid var(--warn); border-radius: 8px; background: #faf6ec; }
+.qbox h3 { margin: 0 0 2px; font-size: 14px; color: #5c3a00; }
+.qbox > .hint { margin: 0 0 4px; }
+.qbox.ro { margin-top: 8px; padding: 8px 10px; }
+.qbox.ro h3 { font-size: 12.5px; margin-bottom: 4px; }
 form p.hint { margin: 3px 0 6px; }
 a.tag { text-decoration: none; }
 a.tag:hover { border-color: var(--navy); }

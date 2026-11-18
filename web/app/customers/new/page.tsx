@@ -1,19 +1,20 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, useLoad } from "@/lib/api";
 import { useSession } from "@/components/Shell";
-import { DOC_KIND } from "@/lib/labels";
+import { DOC_KIND, isHighImpactStateKey } from "@/lib/labels";
 
 type Scenario = {
   key: string; letter: string; name: string; title: string; industry: string; employees: number; description: string;
   allow_external: boolean; monthly_budget_usd: number; subscribed: boolean; current_state: Record<string, boolean>;
   selectable: boolean; lesson: string; points: string[]; documents: { kind: string; title: string }[];
 };
+type StateItem = { key: string; label: string; help: string; clause_ids: string[] };
 type Catalog = {
   industries: string[];
-  state_items: { key: string; label: string; help: string; clause_ids: string[] }[];
+  state_items: StateItem[];
   scenarios: Scenario[];
 };
 
@@ -28,7 +29,10 @@ export default function NewCustomerPage() {
   const [mode, setMode] = useState<"blank" | "scenario">("blank");
   const [scenario, setScenario] = useState("");
   const [form, setForm] = useState(EMPTY);
+  // 설문 답: true=예, false=아니오, 키 없음=아직 답하지 않음(등록 불가)
   const [state, setState] = useState<Record<string, boolean>>({});
+  const [tried, setTried] = useState(false); // 등록을 한 번 눌렀는지 — 그 뒤에만 '답하지 않음' 안내를 보인다
+  const surveyRef = useRef<HTMLDivElement>(null);
   const [withContact, setWithContact] = useState(false);
   const [contact, setContact] = useState({ email: "", password: "", name: "" });
   const [error, setError] = useState("");
@@ -37,6 +41,8 @@ export default function NewCustomerPage() {
   const selectable = (cat.data?.scenarios ?? []).filter((s) => s.selectable);
   const picked = selectable.find((s) => s.key === scenario);
   const ready = !!cat.data && !!existing.data; // 기존 회사명을 알아야 중복 없는 이름을 제안할 수 있다
+  const items = cat.data?.state_items ?? [];
+  const unanswered = items.filter((i) => typeof state[i.key] !== "boolean");
 
   function uniqueName(base: string): string {
     const taken = new Set((existing.data ?? []).map((c) => c.name));
@@ -56,12 +62,16 @@ export default function NewCustomerPage() {
     setForm({ name: uniqueName(s.name), industry: s.industry, employees: String(s.employees), description: s.description,
       allow_external: s.allow_external, monthly_budget_usd: String(s.monthly_budget_usd), subscribed: s.subscribed });
     setState({ ...s.current_state });
+    setTried(false);
+    setError("");
   }
   function blank() {
     setMode("blank");
     setScenario("");
     setForm(EMPTY);
     setState({});
+    setTried(false);
+    setError("");
   }
 
   // 학습 화면에서 넘어온 경우(?scenario=b) 그 시나리오를 미리 고른다
@@ -75,12 +85,21 @@ export default function NewCustomerPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!cat.data) return;
+    if (unanswered.length > 0) {
+      setTried(true);
+      setError(`‘4. 현재 이행 상태’에서 답하지 않은 문항이 ${unanswered.length}개 있습니다. 문항마다 예 또는 아니오를 골라 주세요.`);
+      const first = surveyRef.current?.querySelector<HTMLInputElement>(`input[name="q-${unanswered[0].key}"]`);
+      first?.focus();
+      first?.closest(".q")?.scrollIntoView({ block: "center" });
+      return;
+    }
     setBusy(true);
     try {
       const body: any = {
         name: form.name, industry: form.industry, employees: Number(form.employees || 0), description: form.description,
         allow_external: form.allow_external, monthly_budget_usd: Number(form.monthly_budget_usd || 0), subscribed: form.subscribed,
-        current_state: Object.fromEntries((cat.data?.state_items ?? []).map((i) => [i.key, !!state[i.key]])),
+        current_state: Object.fromEntries(items.map((i) => [i.key, state[i.key] === true])),
         scenario: mode === "scenario" ? scenario : "",
       };
       if (withContact) body.contact = contact;
@@ -90,6 +109,35 @@ export default function NewCustomerPage() {
       setError((err as Error).message);
       setBusy(false);
     }
+  }
+
+  function question(i: StateItem) {
+    const v = state[i.key];
+    const missing = tried && typeof v !== "boolean";
+    const set = (val: boolean) => setState((prev) => ({ ...prev, [i.key]: val }));
+    return (
+      <div key={i.key} className={`q${missing ? " missing" : ""}`}>
+        <div className="qtext">
+          <span id={`ql-${i.key}`}><b>{i.label}</b></span>{" "}
+          {i.clause_ids.map((c) => <Link key={c} href={`/kb#${c}`} target="_blank" className="tag" style={{ marginLeft: 4 }}>{c.startsWith("art31") ? "제31조" : c === "art34" ? "제34조" : c}</Link>)}
+          <span className="hint" id={`qh-${i.key}`}>{i.help}</span>
+        </div>
+        <div className="qans">
+          <div className="seg" role="radiogroup" aria-labelledby={`ql-${i.key}`} aria-describedby={`qh-${i.key}${missing ? ` qe-${i.key}` : ""}`}
+            aria-required="true" aria-invalid={missing || undefined}>
+            <label className={v === true ? "on yes" : ""}>
+              <input type="radio" name={`q-${i.key}`} value="yes" checked={v === true} onChange={() => set(true)} />
+              <span>예<small>(하고 있음)</small></span>
+            </label>
+            <label className={v === false ? "on no" : ""}>
+              <input type="radio" name={`q-${i.key}`} value="no" checked={v === false} onChange={() => set(false)} />
+              <span>아니오<small>(안 하고 있음)</small></span>
+            </label>
+          </div>
+          {missing && <span className="qerr" id={`qe-${i.key}`} role="alert">예 또는 아니오를 선택하세요</span>}
+        </div>
+      </div>
+    );
   }
 
   if (user && !allowed) return <div className="msg err">고객사 등록은 컨설턴트·운영자만 할 수 있습니다.</div>;
@@ -204,17 +252,25 @@ export default function NewCustomerPage() {
 
         <div className="card">
           <h2>4. 현재 이행 상태 (설문 8문항)</h2>
-          <p className="sub">지금 이미 하고 있는 것에 표시하세요. 갭 리포트가 ‘법이 요구하는 것’과 여기 답을 비교해 빠진 것을 찾습니다. 모르면 비워 두세요(없음으로 처리).</p>
-          <div className="qlist">
-            {(cat.data?.state_items ?? []).map((i) => (
-              <label key={i.key} className="check q">
-                <input type="checkbox" checked={!!state[i.key]} onChange={(e) => setState({ ...state, [i.key]: e.target.checked })} />
-                <span>
-                  <b>{i.label}</b> {i.clause_ids.map((c) => <Link key={c} href={`/kb#${c}`} target="_blank" className="tag" style={{ marginLeft: 4 }}>{c.startsWith("art31") ? "제31조" : c === "art34" ? "제34조" : c}</Link>)}
-                  <span className="hint">{i.help}</span>
-                </span>
-              </label>
-            ))}
+          <p className="sub">
+            문항마다 지금 하고 있으면 <b>예</b>, 안 하고 있으면 <b>아니오</b>를 고르세요. 8문항 모두 답해야 등록할 수 있습니다.
+            갭 리포트가 ‘법이 요구하는 것’과 여기 답을 비교해 빠진 것을 찾습니다.
+            {mode === "scenario" && " 연습 시나리오의 기본 답이 미리 선택되어 있으며, 바꿀 수 있습니다."}
+          </p>
+          <div ref={surveyRef}>
+            <div className="qlist">
+              {items.filter((i) => !isHighImpactStateKey(i.key)).map(question)}
+            </div>
+            <section className="qbox" aria-labelledby="qbox-title">
+              <h3 id="qbox-title">고영향 AI인 경우에만 해당 (제34조)</h3>
+              <p className="hint">
+                의료·채용·대출·교육 평가 등 고영향 분야의 AI라면 아래 항목도 필요합니다.
+                해당 없으면 ‘아니오’로 두셔도 갭 리포트에서 고영향이 아닌 경우 의무로 잡히지 않습니다.
+              </p>
+              <div className="qlist">
+                {items.filter((i) => isHighImpactStateKey(i.key)).map(question)}
+              </div>
+            </section>
           </div>
         </div>
 

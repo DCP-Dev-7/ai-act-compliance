@@ -400,3 +400,29 @@ $ docker compose build api     → Cannot connect to the Docker daemon at unix:/
 ## I. 정리
 
 검증 후 `scripts/dev.sh down --purge`로 모든 프로세스를 중지하고 임시 PGDATA(`.devdata/`)를 삭제했습니다. `scripts/dev.sh status`는 web·api·demo·postgres 모두 중지, 8000·3000·8081·55432 포트에 남은 프로세스 없음. 이전 버전 확인용 작업 트리도 제거했습니다.
+
+---
+
+# 추가 검증 — 설문 8문항 예/아니오 전환 (2026-11-18)
+
+등록 폼 "4. 현재 이행 상태"를 체크박스에서 **예(하고 있음) / 아니오(안 하고 있음)** 선택으로 바꾸고, 제34조 4문항을 안쪽 상자 "고영향 AI인 경우에만 해당 (제34조)"로 묶었습니다. 개요 화면의 "현재 이행 상태(설문)"도 같은 두 묶음, 예/아니오 배지로 바꿨습니다. API·DB는 바꾸지 않았습니다(답은 그대로 boolean, API로 직접 보낼 때 빠진 답은 전과 같이 false).
+
+```
+$ cd web && npx tsc --noEmit     → 출력 없음, 종료 코드 0
+$ cd web && npm run build        → 성공 (/customers/new 포함 16개 경로)
+$ cd api && python3 -m pytest -q → 93 passed
+```
+
+`scripts/dev.sh up`(새 DB, PostgreSQL 16, mock) 뒤 Playwright + Chromium(헤드리스, 1280px)으로 확인한 것 — 모두 OK, 페이지 오류 0건:
+
+- 라디오 16개(8문항×2), 빈 고객은 미리 선택된 답 없음, 안쪽 상자에 제34조 4문항, 옛 안내문("모르면 비워 두세요") 없음
+- 답하지 않고 등록 → 이동하지 않음, 문항 옆 "예 또는 아니오를 선택하세요" 8개 + 아래 요약 메시지. 7문항만 답해도 차단, 답한 문항의 안내는 사라짐
+- 키보드 방향키로 예/아니오 전환
+- 8문항 답하고 등록 → 개요 화면에 예 1 / 아니오 7, 안쪽 상자에 4항목
+- `?scenario=c` → 8문항 미리 선택(예 6 / 아니오 2), 하나를 고쳐 등록하면 고친 답이 반영되고 가상 자료 4건 접수
+- 시나리오에서 "빈 고객으로 시작"으로 바꾸면 선택이 모두 지워짐
+- 390px 폭에서 가로 넘침 없음(예/아니오가 설명 아래로 내려감)
+
+안쪽 상자 설명("해당 없으면 '아니오'로 두셔도 … 의무로 잡히지 않습니다")의 근거: `api/app/gap.py`는 판정 결과에 고영향 후보 시스템이 있을 때만 제34조 4항목(GAP-RISK·EXPLAIN·OVERSIGHT·RETENTION)을 봅니다. 기존 테스트의 D사(0건)·E사(3건, 제34조 갭 없음)가 4항목 모두 false인 상태에서 이를 확인합니다.
+
+`docs/guide/img/15-register-form.jpg`는 이 실행에서 다시 찍었습니다. **다시 찍지 않은 것**: 개요 화면이 나오는 이전 캡처(`02-overview.jpg`, `16-overview-step-help.jpg` 등)에는 여전히 "있음/없음" 배지와 한 줄 목록이 보입니다. 스크린 리더 실제 낭독은 확인하지 않았습니다(radiogroup·aria-labelledby·aria-invalid만 넣음). `scripts/e2e_smoke.py`·`ui_click_smoke.py`는 이번에 다시 돌리지 않았습니다(등록 폼을 다루지 않음). 검증 후 `scripts/dev.sh down --purge`로 정리했습니다.
