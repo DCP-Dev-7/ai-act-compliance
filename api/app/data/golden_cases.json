@@ -779,6 +779,146 @@
     "high_impact_status": "not_applicable",
     "art33_recommended": false
    }
+  },
+  {
+   "id": "G29",
+   "title": "연습 시나리오 B — 지원서 자동 평가(검토 없는 자동 탈락)",
+   "synthetic": true,
+   "name": "지원서 자동 평가",
+   "description": "지원서 자동 평가 기능은 기업 고객의 채용 공고에 들어온 지원자의 지원서를 점수화하며, 기준 점수 미만 지원자는 자동으로 탈락 처리됩니다. 지원서 자동 평가의 탈락 결과는 사람의 검토 없이 지원자에게 바로 통보됩니다. 자체 개발한 점수 산출 모델을 씁니다.",
+   "facts": {
+    "provider_type": "self_developed",
+    "is_generative": false,
+    "user_type": "B2B",
+    "output_types": [],
+    "realistic_synthetic": false,
+    "domain": "hiring",
+    "significant_impact": true,
+    "human_review": "none"
+   },
+   "expected": {
+    "operator_role": "developer",
+    "is_generative": false,
+    "prior_notice": true,
+    "output_labeling": false,
+    "deepfake_notice": false,
+    "internal_exemption": false,
+    "high_impact_status": "candidate",
+    "art33_recommended": false
+   }
+  },
+  {
+   "id": "G30",
+   "title": "연습 시나리오 B — 면접 답변 분석(형식적 일괄 승인)",
+   "synthetic": true,
+   "name": "면접 답변 분석",
+   "description": "면접 답변 분석 기능은 화상 면접에서 지원자의 답변을 분석해 합격 여부 추천을 기업 고객에게 제시합니다. 면접 답변 분석의 추천 결과는 인사팀이 내용을 열어 보지 않고 일괄 승인하는 형식적 절차만 거칩니다. 자체 개발한 언어 분석 모델을 씁니다.",
+   "facts": {
+    "provider_type": "self_developed",
+    "is_generative": false,
+    "user_type": "B2B",
+    "output_types": [],
+    "realistic_synthetic": false,
+    "domain": "hiring",
+    "significant_impact": true,
+    "human_review": "formal"
+   },
+   "expected": {
+    "operator_role": "developer",
+    "is_generative": false,
+    "prior_notice": true,
+    "output_labeling": false,
+    "deepfake_notice": false,
+    "internal_exemption": false,
+    "high_impact_status": "candidate",
+    "art33_recommended": true
+   }
+  },
+  {
+   "id": "G31",
+   "title": "연습 시나리오 C — 의료 영상 판독 보조(전문의 최종 판독)",
+   "synthetic": true,
+   "name": "흉부 영상 판독 보조",
+   "description": "흉부 영상 판독 보조 기능은 병원에 공급하는 B2B 제품으로, 흉부 엑스레이에서 병변이 의심되는 영역을 화면에 표시해 영상의학과 전문의의 판독을 돕습니다. 병변을 놓치면 환자의 생명과 신체에 중대한 영향을 줄 수 있습니다. 표시 결과는 그대로 확정되지 않으며, 최종 판단은 전문의가 영상을 직접 확인한 뒤 판독문에 서명해야 내려집니다. 자체 개발한 영상 분석 모델을 쓰며 디지털의료제품법에 따른 의료기기 인허가를 받았습니다.",
+   "facts": {
+    "provider_type": "self_developed",
+    "is_generative": false,
+    "user_type": "B2B",
+    "output_types": [],
+    "realistic_synthetic": false,
+    "domain": "medical",
+    "significant_impact": true,
+    "human_review": "substantive",
+    "other_law_compliance": "디지털의료제품법"
+   },
+   "expected": {
+    "operator_role": "developer",
+    "is_generative": false,
+    "prior_notice": true,
+    "output_labeling": false,
+    "deepfake_notice": false,
+    "internal_exemption": false,
+    "high_impact_status": "excluded_possible",
+    "art33_recommended": true
+   }
+  },
+  {
+   "id": "G32",
+   "title": "연습 시나리오 D — 사내 전용 코드 작성 도우미",
+   "synthetic": true,
+   "name": "코드 작성 도우미",
+   "description": "코드 작성 도우미는 사내 개발자만 쓰는 내부 전용 도구로, 생산 관리 프로그램의 코드 초안을 만들어 줍니다. 외부 LLM API를 호출하며 결과물은 고객이나 거래처에 제공되지 않습니다.",
+   "facts": {
+    "provider_type": "external_api",
+    "is_generative": true,
+    "user_type": "internal",
+    "output_types": [
+     "text"
+    ],
+    "realistic_synthetic": false,
+    "domain": "none",
+    "significant_impact": null,
+    "human_review": "unknown"
+   },
+   "expected": {
+    "operator_role": "deployer",
+    "is_generative": true,
+    "prior_notice": false,
+    "output_labeling": false,
+    "deepfake_notice": false,
+    "internal_exemption": true,
+    "high_impact_status": "not_applicable",
+    "art33_recommended": false
+   }
+  },
+  {
+   "id": "G33",
+   "title": "연습 시나리오 E — 실제 목소리와 구분하기 어려운 음성 합성(B2C)",
+   "synthetic": true,
+   "name": "맞춤 음성 합성",
+   "description": "맞춤 음성 합성 기능은 누구나 쓸 수 있는 B2C 기능으로, 이용자가 입력한 글을 사람이 읽는 것 같은 음성으로 만들어 줍니다. 만든 음성은 실제 목소리와 구분하기 어려운 수준입니다. 외부 음성 합성 모델 API를 호출합니다.",
+   "facts": {
+    "provider_type": "external_api",
+    "is_generative": true,
+    "user_type": "B2C",
+    "output_types": [
+     "audio"
+    ],
+    "realistic_synthetic": true,
+    "domain": "none",
+    "significant_impact": null,
+    "human_review": "unknown"
+   },
+   "expected": {
+    "operator_role": "deployer",
+    "is_generative": true,
+    "prior_notice": true,
+    "output_labeling": true,
+    "deepfake_notice": true,
+    "internal_exemption": false,
+    "high_impact_status": "not_applicable",
+    "art33_recommended": false
+   }
   }
  ]
 }

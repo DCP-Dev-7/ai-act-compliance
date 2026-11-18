@@ -41,13 +41,16 @@ def seed(db: Session) -> None:
             name=CUSTOMER_NAME,
             description="[가상 데이터] 직원 40명. 생성형 AI로 상품 이미지를 만들어 주는 B2C 서비스 '상품 페이지 도우미' 운영. 외부 LLM 2종 사용.",
             employees=40, is_synthetic=True, allow_external=True, monthly_budget_usd=50.0, subscribed=True,
-            current_state={},
+            current_state={}, industry="전자상거래·유통", scenario="a",
             tech_targets={"base_url": s.demo_service_url, "notice_pages": ["/", "/generate.html"],
                           "image_pages": ["/generate.html"], "generated_image_prefix": "/generated/"},
         )
         db.add(cust)
         db.flush()
         db.add(Engagement(customer_id=cust.id, state="intake"))
+    elif not cust.scenario:  # 이전 버전에서 만든 A사: 시나리오 표시만 채운다(다른 값은 건드리지 않음)
+        cust.scenario = "a"
+        cust.industry = cust.industry or "전자상거래·유통"
     for email, name, role, cid in [
         ("a-company@demo", "A사 담당자(가상)", "customer", cust.id),
         ("consultant@demo", "컨설턴트(가상)", "consultant", None),

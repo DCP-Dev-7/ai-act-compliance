@@ -26,6 +26,9 @@ class Customer(Base):
     current_state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     tech_targets: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    # 002 마이그레이션에서 추가(기존 DB 호환을 위해 DB 기본값을 둔다)
+    industry: Mapped[str] = mapped_column(String(60), default="", server_default="")
+    scenario: Mapped[str] = mapped_column(String(40), default="", server_default="")  # "" = 빈 고객, a = 시드 A사, b~e = 연습 시나리오
 
 
 class User(Base):

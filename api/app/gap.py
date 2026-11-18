@@ -86,6 +86,23 @@ def build_findings(systems: list[dict[str, Any]], state: dict[str, Any], today: 
     return findings
 
 
+def no_gap_note(systems: list[dict[str, Any]]) -> str:
+    """발견 사항이 0건일 때 '왜 0건인지'를 설명하는 문장. 오류가 아니라 의미 있는 결과임을 알려 준다."""
+    if not systems:
+        return ""
+    internal = [s for s in systems if s["result"]["art31"]["internal_exemption"]]
+    no_duty = all(not s["result"]["art31"]["applicable"] and s["result"]["high_impact"]["status"] == "not_applicable"
+                  and not s["result"]["art33_recommended"] for s in systems)
+    if no_duty and len(internal) == len(systems):
+        return ("의무 거의 없음 — 모든 AI 시스템이 내부 업무용이고 이용자에게 제공되지 않아 제31조 고지·표시 의무의 예외이며, "
+                "고영향 영역에도 해당하지 않습니다. 남은 일은 (1) 내부 업무용이라는 사실과 이 판정을 기록으로 보관하고 "
+                "(2) 나중에 고객에게 AI 기능을 제공하게 되면 다시 판정하는 것입니다.")
+    if no_duty:
+        return ("의무 거의 없음 — 판정 결과 제31조 고지·표시 의무와 고영향 책무가 적용되는 시스템이 없습니다. "
+                "서비스가 바뀌면 다시 판정하십시오.")
+    return "갭 없음 — 판정된 의무는 설문상 모두 이행 중입니다. 실제 이행 여부는 증빙(화면 캡처, 약관, 문서)으로 확인하십시오."
+
+
 def render_html(customer_name: str, kb_version: str, systems: list[dict[str, Any]], findings: list[dict[str, Any]],
                 clauses: dict[str, dict[str, Any]], generated_on: str) -> str:
     e = html.escape
@@ -112,5 +129,6 @@ td,th{{border:1px solid #c9d1dc;padding:6px 8px;font-size:13px;vertical-align:to
 <h2>1. 대상 시스템과 판정 요약</h2>
 <table><tr><th>시스템</th><th>사업자 지위</th><th>생성형</th><th>제31조</th><th>고영향</th></tr>{sys_rows}</table>
 <h2>2. 발견 사항</h2>
+{'' if findings else f'<p class="banner" style="background:#e2f1ed;border-color:#a9d3ca">{e(no_gap_note(systems))}</p>'}
 <table><tr><th>코드</th><th>내용</th><th>심각도</th><th>담당</th><th>기한</th><th>대상 시스템</th><th>근거 조문(요약)</th></tr>{rows or '<tr><td colspan="7">발견 사항 없음</td></tr>'}</table>
 </body></html>"""

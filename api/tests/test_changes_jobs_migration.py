@@ -108,7 +108,7 @@ def test_jobs_record_runs_and_golden_blocks_promotion(client, auth, monkeypatch)
     m = client.post("/ops/jobs/monthly_report/run", headers=h).json()
     assert m["status"] == "ok" and m["detail"]["results"][0]["document_id"]
     assert client.post("/ops/jobs/nope/run", headers=h).status_code == 404
-    monkeypatch.setenv("GOLDEN_THRESHOLD", "1.0")  # 임계를 100%로 올리면(현재 27/28) 승격이 차단되어야 한다
+    monkeypatch.setenv("GOLDEN_THRESHOLD", "1.0")  # 임계를 100%로 올리면(현재 32/33) 승격이 차단되어야 한다
     r2 = client.post("/ops/jobs/golden_regression/run", headers=h).json()
     assert r2["status"] == "failed" and r2["detail"]["promotion"] == "승격 차단"
     s = client.get("/ops/summary", headers=h).json()
@@ -134,6 +134,32 @@ def test_scheduler_registers_all_jobs():
 
 
 def test_sql_migration_matches_models():
-    from app.migrate import MIGRATIONS_DIR, schema_sql
+    """001 은 배포된 그대로여야 하고(이후 추가 컬럼 제외 시 모델과 동일), 추가 컬럼은 뒤 마이그레이션에 있어야 한다."""
+    import re
+
+    from app.db import Base
+    from app.migrate import ADDED_COLUMNS, MIGRATIONS_DIR, schema_sql
 
     assert (Path(MIGRATIONS_DIR) / "001_init.sql").read_text(encoding="utf-8") == schema_sql()
+    for fname, tables in ADDED_COLUMNS.items():
+        sql = (Path(MIGRATIONS_DIR) / fname).read_text(encoding="utf-8")
+        for table, cols in tables.items():
+            for col in cols:
+                assert col in Base.metadata.tables[table].columns, f"모델에 {table}.{col} 없음"
+                assert re.search(rf"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} ", sql), f"{fname} 에 {col} 없음"
+                # 이전 버전 코드가 넣는 행도 깨지지 않도록 DB 기본값이 있어야 한다
+                assert re.search(rf"ADD COLUMN IF NOT EXISTS {col} [^;]*NOT NULL DEFAULT", sql)
+
+
+def test_later_migrations_are_additive_only():
+    """기존 DB(볼륨)를 보존해야 하므로 001 이후 마이그레이션은 DROP/RENAME/타입 변경을 쓰지 않는다."""
+    import re
+
+    from app.migrate import MIGRATIONS_DIR
+
+    later = sorted(p for p in Path(MIGRATIONS_DIR).glob("*.sql") if p.name != "001_init.sql")
+    assert later, "추가 마이그레이션이 있어야 한다"
+    for p in later:
+        body = re.sub(r"--[^\n]*", "", p.read_text(encoding="utf-8")).upper()
+        for bad in ("DROP ", "RENAME ", "ALTER COLUMN", "TRUNCATE", "DELETE FROM"):
+            assert bad not in body, f"{p.name}: {bad.strip()} 사용 금지"

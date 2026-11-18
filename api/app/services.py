@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from . import docgen, gap, kb, workflow
+from . import docgen, gap, kb, scenarios, workflow
 from .config import get_settings
 from .deps import audit
 from .engine import classify
@@ -20,6 +20,7 @@ from .llm.base import LLMError
 from .llm.router import ModelRouter, get_router
 from .models import (AISystem, Classification, Customer, Document, Engagement, EvidenceItem, Fact, GapReport,
                      GeneratedDocument, GoldenRun, ModelConfig, ReassessmentTask, TechCheck, User)
+from .security import hash_password
 from .techcheck import run_check
 
 
@@ -34,6 +35,59 @@ def engagement_of(db: Session, customer: Customer) -> Engagement:
         db.add(eng)
         db.flush()
     return eng
+
+
+# ---------- 고객사 등록 ----------
+
+class Conflict(RuntimeError):
+    """이미 있는 이름·이메일 등 중복(HTTP 409)."""
+
+
+def create_customer(db: Session, actor: User, *, name: str, industry: str, employees: int, description: str,
+                    allow_external: bool, monthly_budget_usd: float, subscribed: bool, current_state: dict[str, bool],
+                    scenario: str = "", contact: dict[str, str] | None = None) -> dict[str, Any]:
+    """새 고객사를 만들고 1단계(자료 접수)에서 시작한다. 시나리오를 고르면 그 가상 자료를 함께 접수한다."""
+    if actor.role not in ("consultant", "ops"):
+        raise PermissionError("고객사 등록은 컨설턴트·운영자만 할 수 있습니다")
+    name = name.strip()
+    if db.scalars(select(Customer).where(Customer.name == name)).first() is not None:
+        raise Conflict(f"이미 같은 이름의 고객사가 있습니다: {name}")
+    email = (contact or {}).get("email", "").strip().lower()
+    if contact and db.scalars(select(User).where(User.email == email)).first() is not None:
+        raise Conflict(f"이미 사용 중인 로그인 이메일입니다: {email}")
+    state = {k: bool(current_state.get(k, False)) for k in scenarios.STATE_KEYS}
+    customer = Customer(name=name, description=description.strip(), employees=employees, is_synthetic=True,
+                        allow_external=allow_external, monthly_budget_usd=monthly_budget_usd, subscribed=subscribed,
+                        current_state=state, tech_targets={}, industry=industry, scenario=scenario)
+    db.add(customer)
+    db.flush()
+    db.add(Engagement(customer_id=customer.id, state="intake"))
+    db.flush()
+    user = None
+    if contact:
+        user = User(email=email, name=(contact.get("name") or "").strip() or f"{name} 담당자", role="customer",
+                    customer_id=customer.id, password_hash=hash_password(contact["password"]))
+        db.add(user)
+        db.flush()
+    audit(db, actor, "customer.create", entity="customer", entity_id=customer.id, customer_id=customer.id,
+          detail={"name": name, "industry": industry, "employees": employees, "scenario": scenario or "(빈 고객)",
+                  "allow_external": allow_external, "monthly_budget_usd": monthly_budget_usd, "subscribed": subscribed,
+                  "current_state": state, "contact_email": email or None})
+    docs = []
+    if scenario:
+        docs = [ingest_document(db, customer, actor, **d) for d in scenarios.scenario_docs(scenario, state)]
+    return {"customer": customer, "contact": user, "documents": docs}
+
+
+def load_sample_documents(db: Session, customer: Customer, actor: User | str) -> list[Document]:
+    """고객사의 시나리오(A사 포함) 가상 자료 중 아직 없는 것만 접수한다. 빈 고객은 샘플이 없다."""
+    if customer.scenario not in scenarios.SCENARIOS:
+        raise workflow.WorkflowError("이 고객사는 빈 고객으로 등록되어 샘플 자료가 없습니다. '자료 올리기'로 직접 입력하세요")
+    have = {d.title for d in db.scalars(select(Document).where(Document.customer_id == customer.id))}
+    # 이미 설문이 접수된 뒤라면(등록 폼에서 고친 값 등) 현재 이행 상태를 덮어쓰지 않는다
+    state = customer.current_state if customer.current_state else None
+    return [ingest_document(db, customer, actor, **d) for d in scenarios.scenario_docs(customer.scenario, state)
+            if d["title"] not in have]
 
 
 # ---------- 자료 접수 ----------
@@ -356,6 +410,9 @@ def run_tech_check(db: Session, customer: Customer, actor: User | str, store: Ev
                    client: Any = None) -> TechCheck:
     s = get_settings()
     cfg = dict(customer.tech_targets or {})
+    if not cfg.get("base_url") and customer.scenario != "a":
+        raise workflow.WorkflowError("이 고객사에는 점검 대상 서비스 주소가 등록되어 있지 않습니다. "
+                                     "기술 점검은 demo-service 가 연결된 A사 (가상)에서 시연할 수 있습니다")
     base = (cfg.get("base_url") or s.demo_service_url).rstrip("/")
     results = run_check(base, cfg, s.tech_check_allowlist, client=client)
     passed = sum(1 for r in results if r["passed"])

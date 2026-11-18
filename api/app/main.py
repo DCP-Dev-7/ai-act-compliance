@@ -8,13 +8,14 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from . import changes, jobs, kb, services, workflow
+from . import changes, jobs, kb, scenarios, services, workflow
 from .config import get_settings
 from .db import get_db
 from .deps import ROLE_LABELS, audit, current_user, customer_for, require_roles
@@ -22,13 +23,13 @@ from .docgen import DOC_KIND_LABELS
 from .engine import DOMAIN_LABELS
 from .evidence import EvidenceStore, WriteOnceViolation, evidence_count
 from .gap import STATE_LABELS as GAP_STATE_LABELS
+from .gap import no_gap_note as gap_no_gap_note
 from .llm.base import BudgetExceeded, PolicyViolation
 from .llm.router import get_router
 from .models import (AISystem, AuditLog, ChangeEvent, Classification, ControlMapping, Customer, Document,
                      EvidenceItem, Fact, GeneratedDocument, GoldenRun, JobRun, KBVersion, LLMUsage, ModelConfig,
                      ReassessmentTask, TechCheck, User)
 from .security import create_token, verify_password
-from .seed import sample_docs
 from .techcheck import TargetNotAllowed
 
 BANNER = "가상 데이터 · 법률 자문 아님"
@@ -60,6 +61,23 @@ async def count_requests(request: Request, call_next):
 
 @app.exception_handler(workflow.WorkflowError)
 async def _wf(_: Request, e: workflow.WorkflowError):
+    return JSONResponse({"detail": str(e)}, status_code=409)
+
+
+@app.exception_handler(RequestValidationError)
+async def _invalid(_: Request, e: RequestValidationError):
+    """입력 검증 오류를 화면에 그대로 보여 줄 수 있는 한 줄 문장으로 돌려준다(422)."""
+    parts = []
+    for err in e.errors():
+        loc = ".".join(str(x) for x in err.get("loc", ()) if x != "body")
+        parts.append(f"{loc}: {err.get('msg', '')}" if loc else str(err.get("msg", "")))
+    return JSONResponse({"detail": "입력값을 확인하세요 — " + "; ".join(parts), "errors": [
+        {"loc": list(err.get("loc", ())), "msg": err.get("msg", ""), "type": err.get("type", "")} for err in e.errors()]},
+        status_code=422)
+
+
+@app.exception_handler(services.Conflict)
+async def _conflict(_: Request, e: services.Conflict):
     return JSONResponse({"detail": str(e)}, status_code=409)
 
 
@@ -218,6 +236,10 @@ def customer_out(db: Session, c: Customer) -> dict[str, Any]:
     r = get_router()
     return {
         "id": c.id, "name": c.name, "description": c.description, "employees": c.employees,
+        "industry": c.industry or "", "scenario": c.scenario or "",
+        "scenario_letter": scenarios.SCENARIOS.get(c.scenario or "", {}).get("letter"),
+        "has_samples": (c.scenario or "") in scenarios.SCENARIOS,
+        "tech_check_available": bool((c.tech_targets or {}).get("base_url")) or c.scenario == "a",
         "is_synthetic": c.is_synthetic, "allow_external": c.allow_external,
         "monthly_budget_usd": c.monthly_budget_usd, "month_cost_usd": round(r.month_cost(db, c.id), 6),
         "subscribed": c.subscribed, "current_state": c.current_state or {}, "tech_targets": c.tech_targets or {},
@@ -233,6 +255,78 @@ def customers(db: Session = Depends(get_db), user: User = Depends(current_user))
     if user.role == "customer":
         q = q.where(Customer.id == user.customer_id)
     out = [customer_out(db, c) for c in db.scalars(q).all()]
+    db.commit()
+    return out
+
+
+@app.get("/scenarios")
+def scenario_catalog(user: User = Depends(current_user)):
+    """등록 폼·학습 화면용 기준 정보: 업종 목록, 설문 8문항 설명, 연습 시나리오 A~E(전부 가상)."""
+    return scenarios.public_view()
+
+
+class CurrentStateIn(BaseModel):
+    has_prior_notice: bool = False
+    labels_outputs_visible: bool = False
+    embeds_metadata: bool = False
+    tos_has_ai_clause: bool = False
+    risk_policy: bool = False
+    explanation_method: bool = False
+    human_oversight_killswitch: bool = False
+    doc_retention_5y: bool = False
+
+
+class ContactIn(BaseModel):
+    email: str = Field(min_length=3, max_length=200, pattern=r"^[^@\s]+@[^@\s]+$")
+    password: str = Field(min_length=8, max_length=200)
+    name: str = Field(default="", max_length=200)
+
+
+class CustomerIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    industry: str = Field(max_length=60)
+    employees: int = Field(ge=0, le=1_000_000)
+    description: str = Field(default="", max_length=2000)
+    allow_external: bool = False
+    monthly_budget_usd: float = Field(default=50.0, ge=0, le=100000)
+    subscribed: bool = False
+    current_state: CurrentStateIn = Field(default_factory=CurrentStateIn)
+    scenario: str = Field(default="", max_length=40)  # "" = 빈 고객
+    contact: ContactIn | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("회사명을 입력하세요")
+        return v.strip()
+
+    @field_validator("industry")
+    @classmethod
+    def _industry(cls, v: str) -> str:
+        if v not in scenarios.INDUSTRIES:
+            raise ValueError("업종은 목록에서 골라야 합니다: " + ", ".join(scenarios.INDUSTRIES))
+        return v
+
+    @field_validator("scenario")
+    @classmethod
+    def _scenario(cls, v: str) -> str:
+        if v and v not in scenarios.SELECTABLE:
+            raise ValueError("고를 수 있는 연습 시나리오: " + ", ".join(scenarios.SELECTABLE) + " (빈 고객은 빈 문자열)")
+        return v
+
+
+@app.post("/customers", status_code=201)
+def create_customer(body: CustomerIn, db: Session = Depends(get_db),
+                    user: User = Depends(require_roles("consultant", "ops"))):
+    r = services.create_customer(
+        db, user, name=body.name, industry=body.industry, employees=body.employees, description=body.description,
+        allow_external=body.allow_external, monthly_budget_usd=body.monthly_budget_usd, subscribed=body.subscribed,
+        current_state=body.current_state.model_dump(), scenario=body.scenario,
+        contact=body.contact.model_dump() if body.contact else None)
+    out = customer_out(db, r["customer"])
+    out["contact_email"] = r["contact"].email if r["contact"] else None
+    out["documents_loaded"] = len(r["documents"])
     db.commit()
     return out
 
@@ -302,8 +396,7 @@ def upload_document(cid: int, body: DocumentIn, db: Session = Depends(get_db),
 @app.post("/customers/{cid}/documents/load-samples", status_code=201)
 def load_samples(cid: int, db: Session = Depends(get_db), user: User = Depends(require_roles("customer", "consultant"))):
     c = customer_for(db, user, cid)
-    have = {d.title for d in db.scalars(select(Document).where(Document.customer_id == cid))}
-    out = [services.ingest_document(db, c, user, **d) for d in sample_docs() if d["title"] not in have]
+    out = services.load_sample_documents(db, c, user)
     db.commit()
     return [doc_out(d) for d in out]
 
@@ -402,17 +495,22 @@ def confirm(clid: int, db: Session = Depends(get_db), user: User = Depends(requi
 
 # ---------------- 갭 리포트 ----------------
 
-def gap_out(r: Any) -> dict[str, Any]:
+def gap_out(r: Any, note: str = "") -> dict[str, Any]:
     return {"id": r.id, "version": r.version, "kb_version": r.kb_version, "findings": r.findings, "html": r.html,
-            "created_by": r.created_by, "created_at": iso(r.created_at)}
+            "created_by": r.created_by, "created_at": iso(r.created_at), "no_gap_note": note}
+
+
+def _gap_note(db: Session, cid: int, r: Any) -> str:
+    return "" if r.findings else gap_no_gap_note(services.classified_systems(db, cid))
 
 
 @app.post("/customers/{cid}/gap-report")
 def create_gap(cid: int, db: Session = Depends(get_db), user: User = Depends(require_roles("consultant"))):
     c = customer_for(db, user, cid)
     r = services.build_gap_report(db, c, user)
+    out = gap_out(r, _gap_note(db, cid, r))
     db.commit()
-    return gap_out(r)
+    return out
 
 
 @app.get("/customers/{cid}/gap-report")
@@ -420,7 +518,7 @@ def get_gap(cid: int, db: Session = Depends(get_db), user: User = Depends(curren
     customer_for(db, user, cid)
     r = services.latest_gap_report(db, cid)
     _, clauses = kb.active_clauses(db)
-    return {"report": gap_out(r) if r else None, "clauses": clauses}
+    return {"report": gap_out(r, _gap_note(db, cid, r)) if r else None, "clauses": clauses}
 
 
 # ---------------- M4 문서 ----------------
