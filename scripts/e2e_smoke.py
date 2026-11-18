@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""A사(가상) 전체 흐름 E2E 스모크 테스트 — 실행 중인 API(와 웹)에 HTTP 로 붙어 역할별로 흐름을 따라간다.
+"""A사(가상) 전체 흐름 + 고객사 등록·연습 시나리오(B·D) E2E 스모크 테스트
+— 실행 중인 API(와 웹)에 HTTP 로 붙어 역할별로 흐름을 따라간다.
 
 사용: python3 scripts/e2e_smoke.py [--api http://127.0.0.1:8000] [--web http://127.0.0.1:3000]
 실패하면 0 이 아닌 코드로 끝난다. 새로 시드한 DB(자료 미접수 상태)에서 실행하는 것을 전제로 한다.
@@ -15,6 +16,7 @@ import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "api"))
+from app.scenarios import SCENARIOS  # noqa: E402  (가상 연습 시나리오)
 from app.seed import SAMPLE_DOCS, SEED_DIR  # noqa: E402  (가상 샘플 자료)
 
 STEP = 0
@@ -34,9 +36,9 @@ def check(cond: bool, msg: str) -> None:
 
 
 class Role:
-    def __init__(self, api: str, email: str):
+    def __init__(self, api: str, email: str, password: str = "demo1234"):
         self.c = httpx.Client(base_url=api, timeout=60.0)
-        r = self.c.post("/auth/login", json={"email": email, "password": "demo1234"})
+        r = self.c.post("/auth/login", json={"email": email, "password": password})
         if r.status_code != 200:
             print(f"로그인 실패 {email}: {r.status_code} {r.text}")
             sys.exit(1)
@@ -50,6 +52,23 @@ class Role:
             print(f"  ✗ {method} {path} → {r.status_code} (기대 {expect}): {r.text[:400]}")
             sys.exit(1)
         return r.json() if r.headers.get("content-type", "").startswith("application/json") else r.text
+
+
+def scenario_body(key: str, **over) -> dict:
+    """연습 시나리오의 등록 폼 기본값(웹 등록 화면이 채우는 값과 같다)."""
+    s = SCENARIOS[key]
+    return {"name": s["name"], "industry": s["industry"], "employees": s["employees"], "description": s["description"],
+            "allow_external": s["allow_external"], "monthly_budget_usd": s["monthly_budget_usd"],
+            "subscribed": s["subscribed"], "current_state": s["current_state"], "scenario": key, **over}
+
+
+def classify_confirm_gap(cons: "Role", cid: int) -> tuple[dict, dict]:
+    """인벤토리 추출 → 판정 초안 → 확정 → 갭 리포트. (시스템별 판정 결과, 갭 리포트)를 돌려준다."""
+    cons.call("POST", f"/customers/{cid}/inventory/extract")
+    drafts = cons.call("POST", f"/customers/{cid}/classify")
+    for d in drafts:
+        cons.call("POST", f"/classifications/{d['id']}/confirm")
+    return {d["system_name"]: d["result"] for d in drafts}, cons.call("POST", f"/customers/{cid}/gap-report")
 
 
 def main() -> None:
@@ -188,6 +207,65 @@ def main() -> None:
             "evidence.store_package", "tech_check.run", "gateway_logs.ingest", "release.webhook"}
     check(need <= actions, "감사 로그에 주요 작업 기록")
 
+    step("고객사 등록: 권한·검증")
+    cust.call("POST", "/customers", 403, json=scenario_body("b"))
+    print("  ✓ 고객 담당자는 고객사 등록 불가(403)")
+    cons.call("POST", "/customers", 422, json=scenario_body("b", industry="없는 업종"))
+    cons.call("POST", "/customers", 409, json=scenario_body("b", name="A사 (가상)"))
+    print("  ✓ 잘못된 업종은 422, 이미 있는 회사명은 409")
+
+    step("컨설턴트: 연습 시나리오 B(채용 자동 평가) 등록 + 고객 담당자 계정")
+    b = cons.call("POST", "/customers", 201, json=scenario_body(
+        "b", contact={"email": "owner@b-company.example", "password": "practice-1234", "name": "B사 담당자(가상)"}))
+    bid = b["id"]
+    check(b["state"] == "intake" and b["state_index"] == 0, "B사 (가상) 등록 — 1단계(자료 접수)에서 시작")
+    check(b["scenario_letter"] == "B" and b["documents_loaded"] == 4 and not b["allow_external"],
+          "시나리오 B 가상 자료 4건 접수, 외부 반출 금지")
+    check(cons.call("POST", f"/customers/{bid}/documents/load-samples", 201) == [], "샘플 자료 다시 불러와도 중복 접수 없음")
+    check(len(cons.call("GET", "/customers")) == len(customers) + 1, "고객사 목록에 추가됨")
+
+    step("B사: 인벤토리 → 판정 → 확정 → 갭 리포트")
+    res, gap_b = classify_confirm_gap(cons, bid)
+    auto, itv = res["지원서 자동 평가"], res["면접 답변 분석"]
+    check(auto["high_impact"]["status"] == "candidate" and auto["high_impact"]["domain"] == "hiring"
+          and auto["high_impact"]["stage2_significant"] is True, "지원서 자동 평가: 고영향 후보(채용 영역 + 중대한 영향)")
+    check(auto["high_impact"]["human_review"] == "none" and auto["art34_applicable"] and auto["art35_applicable"],
+          "사람 검토 없음 → 제34조 책무·제35조 영향평가 대상")
+    check(auto["art31"]["prior_notice"] and not auto["is_generative"] and not auto["art31"]["output_labeling"],
+          "생성형은 아니지만 고영향이라 사전 고지 필요")
+    check(itv["high_impact"]["status"] == "candidate" and itv["high_impact"]["issue"] and itv["art33_recommended"],
+          "면접 답변 분석: 형식적 검토(쟁점) → 고영향 후보 + 제33조 확인 요청 권고")
+    codes_b = [f["code"] for f in gap_b["findings"]]
+    check(codes_b == SCENARIOS["b"]["expected_gaps"], f"갭 {len(codes_b)}건: {codes_b}")
+    check({"GAP-RISK", "GAP-EXPLAIN", "GAP-OVERSIGHT", "GAP-RETENTION"} <= set(codes_b), "위험관리·설명·사람 감독·5년 보관 갭 포함")
+    gen_b = {d["kind"] for d in cons.call("POST", f"/customers/{bid}/generated-documents/generate")}
+    check({"risk_policy", "impact_checklist"} <= gen_b, "고영향 문서(위험관리 정책 골격·영향평가 체크리스트) 생성")
+
+    step("B사 고객 담당자: 자기 고객사만 조회")
+    bc = Role(args.api, "owner@b-company.example", "practice-1234")
+    check(bc.user["role"] == "customer" and bc.user["customer_id"] == bid, "등록한 계정으로 로그인(고객 담당자)")
+    check([c["name"] for c in bc.call("GET", "/customers")] == ["B사 (가상)"], "목록에 B사만 보임")
+    bc.call("GET", f"/customers/{cid}", 403)
+    bc.call("GET", f"/customers/{cid}/classifications", 403)
+    cust.call("GET", f"/customers/{bid}", 403)
+    bc.call("POST", "/customers", 403, json=scenario_body("d"))
+    print("  ✓ 다른 고객사 조회·고객사 등록은 403 (A사 담당자도 B사 조회 불가)")
+
+    step("운영자: 연습 시나리오 D(사내 업무용 AI) 등록 → 판정 → 갭")
+    d = ops.call("POST", "/customers", 201, json=scenario_body("d"))
+    did = d["id"]
+    check(d["state"] == "intake" and d["documents_loaded"] == 3, "D사 (가상) 등록, 가상 자료 3건 접수")
+    res_d, gap_d = classify_confirm_gap(cons, did)
+    check(set(res_d) == {"사내 문서 요약", "코드 작성 도우미"}, f"시스템 2개: {sorted(res_d)}")
+    check(all(r["art31"]["internal_exemption"] and not r["art31"]["applicable"] and not r["art31"]["prior_notice"]
+              and not r["art31"]["output_labeling"] for r in res_d.values()), "D사: 내부 업무용 예외 — 제31조 의무 없음")
+    check(all(r["high_impact"]["status"] == "not_applicable" and not r["art34_applicable"] for r in res_d.values()),
+          "D사: 고영향 아님")
+    check(gap_d["findings"] == [] and gap_d["no_gap_note"].startswith("의무 거의 없음"), "갭 0건 + '의무 거의 없음' 설명")
+    acts = {x["action"] for x in ops.call("GET", f"/audit?customer_id={did}&limit=100")}
+    check({"customer.create", "document.upload", "gap_report.create"} <= acts, "감사 로그에 customer.create 기록")
+    check("practice-1234" not in json.dumps(ops.call("GET", "/audit?limit=500")), "감사 로그에 비밀번호 없음")
+
     if args.web:
         step("웹 포털(Next.js) 확인")
         w = httpx.Client(base_url=args.web, timeout=60.0)
@@ -196,7 +274,11 @@ def main() -> None:
         r = w.post("/api/auth/login", json={"email": "consultant@demo", "password": "demo1234"})
         check(r.status_code == 200 and "aiact_session" in w.cookies, "웹 프록시 로그인(httpOnly 쿠키)")
         check(w.get("/api/customers").json()[0]["name"] == "A사 (가상)", "웹 프록시 경유 API 호출(쿠키 세션)")
-        for p in ["/", f"/customers/{cid}", f"/customers/{cid}/classification", f"/customers/{cid}/evidence", "/ops", "/kb"]:
+        cat = w.get("/api/scenarios").json()
+        check([s["letter"] for s in cat["scenarios"]] == ["A", "B", "C", "D", "E"] and len(cat["state_items"]) == 8,
+              "웹 프록시 경유 시나리오·설문 기준 정보")
+        for p in ["/", f"/customers/{cid}", f"/customers/{cid}/classification", f"/customers/{cid}/evidence", "/ops", "/kb",
+                  "/learn", "/customers/new", f"/customers/{bid}/classification", f"/customers/{did}/gap"]:
             check(w.get(p).status_code == 200, f"페이지 {p} 200")
 
     print("\nE2E 스모크 테스트 통과")

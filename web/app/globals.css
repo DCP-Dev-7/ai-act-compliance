@@ -92,3 +92,77 @@ pre.doc { white-space: pre-wrap; font-size: 12.5px; background: #fff; border: 1p
 .hint { font-size: 12px; color: var(--ink-2); }
 details > summary { cursor: pointer; font-size: 13px; color: var(--navy); }
 @media (max-width: 640px) { .kv { grid-template-columns: 1fr; } main { padding: 16px 12px 40px; } }
+
+/* ---- 고객사 등록 폼 ---- */
+.choice { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+.scenarios { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-top: 12px; }
+label.pick {
+  display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 8px; background: #fff; cursor: pointer; color: var(--ink); font-size: 13.5px;
+}
+label.pick.on { border-color: var(--accent); background: var(--accent-soft); }
+label.pick input, label.check input { width: auto; margin-top: 4px; flex: none; }
+label.pick > span { display: flex; flex-direction: column; gap: 2px; }
+label.check { display: flex; gap: 8px; align-items: flex-start; color: var(--ink); font-size: 14px; margin: 10px 0 2px; cursor: pointer; }
+label.check.q { padding: 8px 0; margin: 0; border-bottom: 1px solid #ebe7dd; }
+label.check.q:last-child { border-bottom: 0; }
+label.check.q .hint { display: block; margin-top: 2px; }
+.qlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); column-gap: 28px; }
+form p.hint { margin: 3px 0 6px; }
+a.tag { text-decoration: none; }
+a.tag:hover { border-color: var(--navy); }
+
+/* ---- 쉬운 설명(? 버튼·펼침) ---- */
+.term { position: relative; display: inline-block; }
+.kv.wide { grid-template-columns: 178px 1fr; }
+.helpbtn {
+  width: 17px; height: 17px; padding: 0; margin-left: 5px; border-radius: 50%; font-size: 11px; line-height: 15px;
+  font-weight: 700; background: #fff; color: var(--navy); border: 1px solid #9fb2cc; vertical-align: 1px;
+}
+.helpbtn.static { display: inline-block; text-align: center; margin: 0 2px; cursor: default; }
+.helppop {
+  display: none; position: absolute; z-index: 30; left: 0; top: calc(100% + 2px); width: min(340px, 78vw);
+  background: #fff; border: 1px solid #9fb2cc; border-radius: 8px; padding: 10px 12px; box-shadow: 0 6px 18px rgba(23,33,43,.16);
+  font-size: 13px; line-height: 1.55; color: var(--ink); text-align: left; white-space: normal; font-weight: 400;
+}
+.term:hover .helppop, .term:focus-within .helppop, .helppop.open { display: block; }
+.helppop b, .helppop .helptext, .helppop a, .helppop .helpnote { display: block; }
+.helppop .helptext { margin: 3px 0 6px; }
+.helppop .helpnote { font-size: 11.5px; color: var(--ink-2); margin-top: 3px; }
+details.stephelp { margin-top: 4px; }
+details.stephelp dl { margin: 6px 0 2px; padding: 8px 10px; background: #fff; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); }
+details.stephelp dt { font-weight: 600; font-size: 12px; color: var(--accent); margin-top: 6px; }
+details.stephelp dt:first-child { margin-top: 0; }
+details.stephelp dd { margin: 0; font-size: 13px; }
+.clause { border-bottom: 1px solid #ebe7dd; padding: 10px 0; scroll-margin-top: 12px; }
+.clause.target { background: #fffaf0; box-shadow: -10px 0 0 #fffaf0, 10px 0 0 #fffaf0; border-left: 0; outline: 2px solid #e0a500; outline-offset: 6px; border-radius: 4px; }
+
+/* ---- AI 기본법 한눈에 ---- */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-top: 14px; }
+.facts > div { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #fff; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+.facts b { font-size: 17px; letter-spacing: -0.01em; }
+ol.flow { list-style: none; margin: 12px 0 0; padding: 0; }
+.flowstep { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 0 18px; position: relative; padding-bottom: 26px; }
+.flowstep:last-child { padding-bottom: 0; }
+.flowstep::after { content: "↓"; position: absolute; left: 17px; bottom: 3px; color: var(--ink-2); font-size: 15px; }
+.flowstep:last-child::after { content: none; }
+.flowq { display: flex; gap: 12px; border: 1px solid #b4c4dc; background: #f1f5fa; border-radius: 10px; padding: 12px 14px; }
+.flowq h3 { font-size: 14.5px; margin-bottom: 4px; }
+.flowq p { font-size: 13px; margin-bottom: 6px; }
+.flown { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+.flowout { display: flex; flex-direction: column; gap: 8px; font-size: 13px; position: relative; }
+.flowout > div { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: #fff; flex: 1; position: relative; }
+.flowout > div::before { content: ""; position: absolute; left: -19px; top: 50%; width: 18px; border-top: 1px solid #9fb2cc; }
+.flowout .yes { border-left: 4px solid #e0a500; }
+.flowout .no { border-left: 4px solid var(--accent); }
+table.scn td { font-size: 13px; }
+table.scn td.sysname { min-width: 130px; }
+table.scn td.nw { white-space: nowrap; }
+table.scn tr.first td { border-top: 2px solid var(--line); }
+table.scn .lesson { font-size: 12.5px; color: var(--ink-2); margin: 4px 0; }
+@media (max-width: 760px) {
+  .flowstep { grid-template-columns: 1fr; gap: 8px; }
+  .flowout > div::before { content: none; }
+  .qlist { grid-template-columns: 1fr; }
+}
+.choice[hidden] { display: none; }

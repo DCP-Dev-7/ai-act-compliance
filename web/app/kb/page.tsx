@@ -1,9 +1,20 @@
 "use client";
+import { useEffect } from "react";
 import { fmt, useLoad } from "@/lib/api";
 
 export default function KbPage() {
   const kb = useLoad<any>("/kb");
   const k = kb.data;
+  // 판정·학습 화면의 '조문 요약 보기' 링크(/kb#clause_id)로 들어오면 그 조문으로 이동해 강조한다
+  useEffect(() => {
+    if (!k) return;
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    const el = id ? document.getElementById(id) : null;
+    if (el) {
+      el.scrollIntoView({ block: "start" });
+      el.classList.add("target");
+    }
+  }, [k]);
   return (
     <>
       <h1>법령 지식베이스</h1>
@@ -15,7 +26,7 @@ export default function KbPage() {
           <div className="card">
             <h2>조문 단위 요약 <span className="tag warn">{k.summary_label}</span></h2>
             {k.clauses.map((c: any) => (
-              <div key={c.clause_id} style={{ borderBottom: "1px solid #ebe7dd", padding: "10px 0" }}>
+              <div key={c.clause_id} id={c.clause_id} className="clause">
                 <h3>{c.article} · {c.title} <span className="mono sub">{c.clause_id}</span></h3>
                 <p>{c.summary}</p>
                 <ul className="plain">{c.obligations.map((o: string, i: number) => <li key={i}>{o}</li>)}</ul>

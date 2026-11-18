@@ -5,12 +5,19 @@ import { api, fmt, useLoad } from "@/lib/api";
 import { Action, CustomerFrame, useCustomer } from "@/components/CustomerFrame";
 import { useSession } from "@/components/Shell";
 import { DOC_KIND } from "@/lib/labels";
+import { STEP_HELP } from "@/lib/learn";
+
+const EXAMPLE_DOC = `[가상 데이터] 서비스 소개 메모
+AI 활용 기능: 고객 상담 챗봇, 사내 회의록 요약
+고객 상담 챗봇은 일반 이용자에게 제공하는 B2C 기능이며 외부 LLM API를 호출해 답변을 만듭니다.
+사내 회의록 요약은 임직원만 쓰는 내부 업무용 도구이며 외부 LLM API를 호출합니다.`;
 
 export default function CustomerOverview() {
   const { id, customer, reloadCustomer, customerError } = useCustomer();
   const { user, meta } = useSession();
   const docs = useLoad<any[]>(`/customers/${id}/documents`);
   const audit = useLoad<any[]>(`/audit?customer_id=${id}&limit=12`);
+  const cat = useLoad<any>("/scenarios");
   const [form, setForm] = useState({ kind: "other", title: "", content: "" });
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -35,7 +42,9 @@ export default function CustomerOverview() {
   const si = customer?.state_index ?? 0;
   const steps: { label: string; desc: string; el: React.ReactNode; min: number }[] = [
     { label: "1. 자료 접수", desc: "설문·소개서·약관·개발 문서를 올립니다.", min: 0,
-      el: <Action label="샘플 자료 불러오기(가상)" path={`${base}/documents/load-samples`} roles={["customer", "consultant"]} onDone={reloadAll} ghost /> },
+      el: !customer ? null : !customer.has_samples
+        ? <span className="hint">빈 고객입니다. 아래 ‘자료 올리기’로 직접 입력하세요.</span>
+        : <Action label="샘플 자료 불러오기(가상)" path={`${base}/documents/load-samples`} roles={["customer", "consultant"]} onDone={reloadAll} ghost /> },
     { label: "2. AI 인벤토리 추출", desc: "자료에서 AI 시스템과 사실을 뽑고 인용 근거를 붙입니다.", min: 0,
       el: <Action label="인벤토리 추출" path={`${base}/inventory/extract`} roles={["consultant"]} onDone={reloadAll} /> },
     { label: "3. 판정 초안", desc: "법령 규칙(결정 트리)으로 초안을 만듭니다.", min: 1,
@@ -51,15 +60,31 @@ export default function CustomerOverview() {
       el: <Action label="증적 보관" path={`${base}/evidence/store-package`} roles={["consultant"]} onDone={reloadAll} /> },
   ];
 
+  const sc = (cat.data?.scenarios ?? []).find((x: any) => x.key === customer?.scenario);
+
   return (
     <CustomerFrame customer={customer} id={id}>
       {customerError && <div className="msg err">{customerError}</div>}
+      {customer && sc && (
+        <div className="msg info">
+          <b>연습 시나리오 {sc.letter} <span className="tag warn">가상</span></b> — {sc.lesson}
+          <details style={{ marginTop: 4 }}>
+            <summary>이 시나리오에서 볼 것</summary>
+            <ul className="plain" style={{ marginTop: 6 }}>
+              {sc.points.map((x: string, i: number) => <li key={i}>{x}</li>)}
+              <li>예상 갭: {sc.expected_gaps.length === 0 ? "0건(의무 거의 없음)" : `${sc.expected_gaps.length}건 (${sc.expected_gaps.join(", ")})`} — 기본 설문 답 기준</li>
+            </ul>
+            <Link href="/learn">AI 기본법 한눈에에서 다른 시나리오와 비교 →</Link>
+          </details>
+        </div>
+      )}
       {customer && (
         <div className="row">
           <div className="card">
             <h2>고객사 정보 <span className="tag warn">가상 데이터</span></h2>
             <p>{customer.description}</p>
             <dl className="kv">
+              {customer.industry && <><dt>업종</dt><dd>{customer.industry}</dd></>}
               <dt>직원 수</dt><dd>{customer.employees}명</dd>
               <dt>구독(증적 보관·변경 감시)</dt><dd>{customer.subscribed ? "구독 중" : "미구독"}</dd>
               <dt>현재 이행 상태(설문)</dt>
@@ -97,16 +122,26 @@ export default function CustomerOverview() {
           <table>
             <tbody>
               {steps.map((s, i) => (
-                <tr key={s.label} style={{ opacity: si < s.min ? 0.5 : 1 }}>
-                  <td style={{ width: 170 }}><b>{s.label}</b> {(i < si || si === 7) && <span className="tag ok">완료</span>}{i === si && si < 7 && <span className="tag warn">현재</span>}</td>
-                  <td className="sub">{s.desc}</td>
-                  <td style={{ width: 300 }}>{s.el}</td>
+                <tr key={s.label}>
+                  <td style={{ width: 170, opacity: si < s.min ? 0.5 : 1 }}><b>{s.label}</b> {(i < si || si === 7) && <span className="tag ok">완료</span>}{i === si && si < 7 && <span className="tag warn">현재</span>}</td>
+                  <td className="sub">
+                    <span style={{ opacity: si < s.min ? 0.5 : 1 }}>{s.desc}</span>
+                    <details className="stephelp">
+                      <summary>이 단계는?</summary>
+                      <dl>
+                        <dt>무슨 일이 일어나나</dt><dd>{STEP_HELP[i].what}</dd>
+                        <dt>법적으로는</dt><dd>{STEP_HELP[i].legal}</dd>
+                        <dt>컨설턴트가 확인할 것</dt><dd>{STEP_HELP[i].check}</dd>
+                      </dl>
+                    </details>
+                  </td>
+                  <td style={{ width: 300, opacity: si < s.min ? 0.5 : 1 }}>{s.el}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="hint">단계를 건너뛰면 서버가 거절합니다. 앞 단계를 다시 실행하면 그 단계로 되돌아갑니다(재평가).</p>
+        <p className="hint">단계를 건너뛰면 서버가 거절합니다. 앞 단계를 다시 실행하면 그 단계로 되돌아갑니다(재평가). 단계마다 ‘이 단계는?’을 누르면 설명이 펼쳐집니다(요약 — 원문 확인 필요, 법률 자문 아님).</p>
       </div>
 
       <div className="row">
@@ -119,7 +154,7 @@ export default function CustomerOverview() {
               <pre className="doc">{d.content}</pre>
             </details>
           ))}
-          {docs.data?.length === 0 && <p className="sub">아직 접수된 자료가 없습니다. ‘샘플 자료 불러오기(가상)’를 누르거나 직접 올려 주세요.</p>}
+          {docs.data?.length === 0 && <p className="sub">아직 접수된 자료가 없습니다. {customer?.has_samples ? "‘샘플 자료 불러오기(가상)’를 누르거나 직접 올려 주세요." : "오른쪽 ‘자료 올리기’로 직접 입력해 주세요."}</p>}
         </div>
         <div className="card">
           <h2>자료 올리기 (텍스트)</h2>
@@ -133,7 +168,15 @@ export default function CustomerOverview() {
             <input id="title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
             <label htmlFor="content">내용 (실제 개인정보·영업비밀을 넣지 마세요)</label>
             <textarea id="content" rows={6} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} required />
-            <div style={{ marginTop: 10 }}><button type="submit" disabled={!canUpload}>올리기</button>{!canUpload && <span className="hint"> 고객 담당자·컨설턴트 전용</span>}</div>
+            <div className="actions" style={{ marginTop: 10 }}>
+              <button type="submit" disabled={!canUpload}>올리기</button>
+              <button type="button" className="ghost" disabled={!canUpload} onClick={() => setForm({ kind: "service_intro", title: "[가상] 서비스 소개 메모", content: EXAMPLE_DOC })}>작성 예시 넣기</button>
+              {!canUpload && <span className="hint"> 고객 담당자·컨설턴트 전용</span>}
+            </div>
+            <p className="hint" style={{ marginTop: 8 }}>
+              쓰는 요령: <b>‘AI 활용 기능: 기능1, 기능2’</b> 한 줄로 기능 이름을 적고, 기능마다 ① 누가 쓰는지(고객/직원) ② 무엇을 만들거나 판단하는지 ③ 외부 API인지 자체 개발인지 ④ 결과를 사람이 검토하는지를 문장으로 적어 주세요.
+              mock 모드의 추출은 키워드 규칙이라 이 형식을 벗어나면 시스템을 못 찾을 수 있습니다.
+            </p>
           </form>
         </div>
       </div>

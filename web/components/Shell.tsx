@@ -69,6 +69,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           {user && (
             <>
               <Link href="/" className={path === "/" || path.startsWith("/customers") ? "on" : ""}>고객사</Link>
+              <Link href="/learn" className={path.startsWith("/learn") ? "on" : ""}>AI 기본법 한눈에</Link>
               <Link href="/kb" className={path.startsWith("/kb") ? "on" : ""}>법령 지식베이스</Link>
               {user.role !== "customer" && <Link href="/ops" className={path.startsWith("/ops") ? "on" : ""}>운영 콘솔</Link>}
             </>

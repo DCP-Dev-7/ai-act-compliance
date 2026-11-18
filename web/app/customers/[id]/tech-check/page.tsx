@@ -17,6 +17,9 @@ export default function TechCheckPage() {
         <Action label="지금 점검" path={`/customers/${id}/tech-check`} roles={["consultant", "ops"]} onDone={() => tc.reload()} />
       </div>
       {tc.error && <div className="msg err">{tc.error}</div>}
+      {customer && !customer.tech_check_available && (
+        <div className="msg info">이 고객사에는 점검할 서비스 주소가 등록되어 있지 않습니다. 기술 점검은 데모용 가상 서비스(demo-service)가 연결된 A사 (가상)에서 시연할 수 있습니다.</div>
+      )}
       {tc.data?.items.length === 0 && <div className="card"><p className="sub">점검 기록이 없습니다.</p></div>}
       {(tc.data?.items ?? []).map((t: any) => (
         <div className="card" key={t.id}>
